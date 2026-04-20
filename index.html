@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#1f2937">
+<title>BTB Pilote — Allée · Clôture · Jardin</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+
+<style>
+:root {
+  --all:  #d97706;   /* Allée  — ambre */
+  --clo:  #34943f;   /* Clôture — vert */
+  --jar:  #0ea5e9;   /* Jardin — bleu */
+  --primary: #1f2937;
+  --bg:   #f7f8fa;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted:#6b7280;
+  --border:#e5e7eb;
+  --red:#dc2626;
+  --amber:#f59e0b;
+  --green:#16a34a;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; }
+button { font-family: inherit; cursor: pointer; }
+a { color: var(--primary); }
+
+/* ─── Header ─── */
+.app-header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--primary); color: #fff;
+  padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+.app-logo {
+  display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.02rem;
+}
+.app-logo .triple {
+  display: inline-flex; gap: 2px;
+}
+.app-logo .triple span {
+  width: 8px; height: 18px; border-radius: 2px;
+}
+.app-logo .triple .s1 { background: var(--all); }
+.app-logo .triple .s2 { background: var(--clo); }
+.app-logo .triple .s3 { background: var(--jar); }
+.header-actions { display: flex; align-items: center; gap: 10px; font-size: .82rem; }
+.header-actions button {
+  background: rgba(255,255,255,.12); color: #fff; border: 0; padding: 6px 10px; border-radius: 6px; font-size: .78rem;
+}
+.header-actions button:hover { background: rgba(255,255,255,.2); }
+.header-link { color: #fff; text-decoration: none; opacity: .9; font-size: .78rem; border: 1px solid rgba(255,255,255,.3); padding: 5px 10px; border-radius: 6px; }
+.header-link:hover { opacity: 1; background: rgba(255,255,255,.08); }
+
+/* ─── Layout ─── */
+.container { max-width: 1200px; margin: 0 auto; padding: 14px; }
+.nav-tabs {
+  display: flex; gap: 4px; background: var(--card); padding: 6px; border-radius: 10px;
+  margin-bottom: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+}
+.nav-tabs button {
+  flex: 1; min-width: 110px; padding: 10px 12px; border: 0; background: transparent;
+  border-radius: 7px; font-weight: 600; color: var(--muted); font-size: .88rem;
+  white-space: nowrap; transition: all .15s;
+}
+.nav-tabs button.active { background: var(--primary); color: #fff; }
+
+/* ─── Cards ─── */
+.card {
+  background: var(--card); border-radius: 10px; padding: 14px; margin-bottom: 12px;
+  border: 1px solid var(--border);
+}
+.card-title { font-weight: 700; margin: 0 0 10px; font-size: 1rem; display: flex; align-items: center; justify-content: space-between; }
+.chip {
+  display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .72rem; font-weight: 700;
+  color: #fff; letter-spacing: .02em;
+}
+.chip-all { background: var(--all); }
+.chip-clo { background: var(--clo); }
+.chip-jar { background: var(--jar); }
+.chip-muted { background: #e5e7eb; color: #4b5563; }
+
+/* ─── Dashboard triple ─── */
+.dash-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+@media (max-width: 720px) {
+  .dash-grid { grid-template-columns: 1fr; }
+}
+.dash-societe {
+  border-left: 5px solid var(--border); padding: 12px 14px;
+  background: #fff; border-radius: 10px;
+  border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.dash-societe.s-ALL { border-left-color: var(--all); }
+.dash-societe.s-CLO { border-left-color: var(--clo); }
+.dash-societe.s-JAR { border-left-color: var(--jar); }
+.dash-societe h3 { margin: 0 0 8px; font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+.dash-kpi { display: flex; justify-content: space-between; padding: 4px 0; font-size: .86rem; color: #374151; }
+.dash-kpi strong { font-size: .95rem; color: var(--text); font-weight: 700; }
+.dash-total {
+  background: linear-gradient(135deg, #111827 0%, #1f2937 100%); color: #fff;
+  border-radius: 10px; padding: 14px; margin-top: 10px;
+}
+.dash-total h3 { margin: 0 0 8px; font-size: 1rem; opacity: .9; }
+.dash-total-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 720px) { .dash-total-grid { grid-template-columns: repeat(2, 1fr); } }
+.dash-total-kpi { background: rgba(255,255,255,.08); border-radius: 8px; padding: 10px; }
+.dash-total-kpi .label { font-size: .72rem; opacity: .75; text-transform: uppercase; letter-spacing: .05em; }
+.dash-total-kpi .value { font-size: 1.25rem; font-weight: 800; margin-top: 3px; }
+
+/* ─── List items ─── */
+.item-list { list-style: none; padding: 0; margin: 0; }
+.item-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  margin-bottom: 6px; background: #fff;
+}
+.item-row:hover { background: #fafbfc; }
+.item-main { flex: 1; min-width: 0; }
+.item-title { font-weight: 600; word-break: break-word; }
+.item-sub { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+.item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.btn-sm { padding: 5px 10px; font-size: .78rem; border-radius: 6px; border: 1px solid var(--border); background: #fff; }
+.btn-sm:hover { background: #f3f4f6; }
+.btn-sm.danger { color: var(--red); border-color: #fecaca; }
+.btn-primary {
+  background: var(--primary); color: #fff; border: 0; padding: 9px 14px;
+  border-radius: 7px; font-weight: 600; font-size: .88rem;
+}
+.btn-primary:hover { opacity: .92; }
+
+/* ─── Form ─── */
+.form-group { margin-bottom: 10px; }
+.form-group label { display: block; font-size: .82rem; font-weight: 600; margin-bottom: 4px; color: #374151; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px;
+  font-family: inherit; font-size: .9rem; background: #fff;
+}
+.form-group textarea { min-height: 60px; resize: vertical; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 520px) { .form-row { grid-template-columns: 1fr; } }
+
+/* Société checkboxes */
+.soc-checks { display: flex; gap: 8px; flex-wrap: wrap; }
+.soc-checks label {
+  display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+  border: 2px solid var(--border); border-radius: 8px; cursor: pointer;
+  font-weight: 600; font-size: .85rem; transition: all .15s; user-select: none;
+}
+.soc-checks label.sel-ALL { border-color: var(--all); background: #fef3e4; }
+.soc-checks label.sel-CLO { border-color: var(--clo); background: #e7f5e9; }
+.soc-checks label.sel-JAR { border-color: var(--jar); background: #e0f2fe; }
+.soc-checks input { accent-color: var(--primary); margin: 0; }
+
+/* ─── Modal ─── */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
+  align-items: center; justify-content: center; z-index: 200; padding: 12px;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: #fff; border-radius: 12px; max-width: 580px; width: 100%;
+  max-height: 90vh; overflow-y: auto; padding: 18px;
+}
+.modal h2 { margin: 0 0 12px; font-size: 1.1rem; }
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+
+/* ─── Login ─── */
+.login-wrap {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%); padding: 16px;
+}
+.login-card { background: #fff; border-radius: 16px; padding: 30px 26px; max-width: 380px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,.25); }
+.login-card h1 { margin: 0 0 6px; font-size: 1.35rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.login-card .triple { display: inline-flex; gap: 3px; }
+.login-card .triple span { width: 10px; height: 22px; border-radius: 3px; }
+.login-card .subtitle { text-align: center; color: var(--muted); font-size: .82rem; margin-bottom: 18px; }
+.login-err { color: var(--red); font-size: .82rem; margin-top: 8px; text-align: center; }
+
+/* ─── Helpers ─── */
+.empty { text-align: center; color: var(--muted); padding: 30px 16px; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.muted { color: var(--muted); font-size: .82rem; }
+.hidden { display: none !important; }
+.badge-stat { background: #e5e7eb; color: #374151; padding: 2px 8px; border-radius: 10px; font-size: .72rem; font-weight: 700; margin-left: 6px; }
+</style>
+</head>
+
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="loginView" class="login-wrap">
+  <form class="login-card" onsubmit="doLogin(event)">
+    <h1>
+      <span class="triple"><span style="background:#d97706"></span><span style="background:#34943f"></span><span style="background:#0ea5e9"></span></span>
+      BTB Pilote
+    </h1>
+    <div class="subtitle">Allée · Clôture · Jardin</div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="loginEmail" required autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>Mot de passe</label>
+      <input type="password" id="loginPwd" required autocomplete="current-password">
+    </div>
+    <button class="btn-primary" type="submit" style="width:100%">Connexion</button>
+    <div id="loginErr" class="login-err"></div>
+  </form>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="appView" class="hidden">
+
+  <header class="app-header">
+    <div class="app-logo">
+      <span class="triple"><span class="s1"></span><span class="s2"></span><span class="s3"></span></span>
+      BTB Pilote
+    </div>
+    <div class="header-actions">
+      <a href="https://dm-pilote-360.vercel.app" class="header-link" target="_blank" rel="noopener" title="Aller sur DM Pilote 360">↗ DM Pilote</a>
+      <span id="userLabel" class="muted" style="color:#d1d5db"></span>
+      <button onclick="doLogout()">Déconnexion</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <nav class="nav-tabs" id="navTabs">
+      <button class="active" data-tab="dashboard">📊 Dashboard</button>
+      <button data-tab="chantiers">🏗 Chantiers</button>
+      <button data-tab="prospects">🎯 Prospects</button>
+      <button data-tab="suivi">📈 Suivi commercial</button>
+    </nav>
+
+    <!-- Dashboard -->
+    <section id="tab-dashboard" class="tab-content">
+      <div class="flex-between" style="margin-bottom:10px">
+        <h2 style="margin:0;font-size:1.15rem">Tableau de bord triple</h2>
+        <span class="muted" id="dashPeriode"></span>
+      </div>
+      <div class="dash-grid" id="dashGrid"></div>
+      <div class="dash-total" id="dashTotal"></div>
+    </section>
+
+    <!-- Chantiers -->
+    <section id="tab-chantiers" class="tab-content hidden">
+      <div class="flex-between" style="margin-bottom:10px">
+        <h2 style="margin:0;font-size:1.15rem">Chantiers <span class="badge-stat" id="badgeChantiers">0</span></h2>
+        <button class="btn-primary" onclick="openChantierModal()">+ Nouveau chantier</button>
+      </div>
+      <div class="card" style="padding:10px">
+        <div class="flex-between">
+          <div>
+            <label class="muted" style="font-size:.78rem">Filtre société :</label>
+            <select id="filtreSocChantier" onchange="renderChantiers()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);margin-left:5px">
+              <option value="">Toutes</option>
+              <option value="ALL">Allée</option>
+              <option value="CLO">Clôture</option>
+              <option value="JAR">Jardin</option>
+            </select>
+          </div>
+          <div>
+            <label class="muted" style="font-size:.78rem">Statut :</label>
+            <select id="filtreStatutChantier" onchange="renderChantiers()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);margin-left:5px">
+              <option value="">Tous</option>
+              <option>Prospect</option>
+              <option>Signé</option>
+              <option>En cours</option>
+              <option>Terminé</option>
+              <option>Facturé</option>
+              <option>Annulé</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <ul class="item-list" id="listChantiers"></ul>
+    </section>
+
+    <!-- Prospects -->
+    <section id="tab-prospects" class="tab-content hidden">
+      <div class="flex-between" style="margin-bottom:10px">
+        <h2 style="margin:0;font-size:1.15rem">Prospects <span class="badge-stat" id="badgeProspects">0</span></h2>
+        <button class="btn-primary" onclick="openProspectModal()">+ Nouveau prospect</button>
+      </div>
+      <div class="card" style="padding:10px">
+        <div class="flex-between">
+          <div>
+            <label class="muted" style="font-size:.78rem">Société :</label>
+            <select id="filtreSocProspect" onchange="renderProspects()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);margin-left:5px">
+              <option value="">Toutes</option>
+              <option value="ALL">Allée</option>
+              <option value="CLO">Clôture</option>
+              <option value="JAR">Jardin</option>
+            </select>
+          </div>
+          <div>
+            <label class="muted" style="font-size:.78rem">Statut :</label>
+            <select id="filtreStatutProspect" onchange="renderProspects()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);margin-left:5px">
+              <option value="">Tous</option>
+              <option>Nouveau</option>
+              <option>RDV pris</option>
+              <option>RDV OK</option>
+              <option>Devis envoyé</option>
+              <option>Transformé</option>
+              <option>Perdu</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <ul class="item-list" id="listProspects"></ul>
+    </section>
+
+    <!-- Suivi commercial -->
+    <section id="tab-suivi" class="tab-content hidden">
+      <div class="flex-between" style="margin-bottom:10px">
+        <h2 style="margin:0;font-size:1.15rem">Suivi commercial <span class="badge-stat" id="badgeSuivi">0</span></h2>
+        <button class="btn-primary" onclick="openSuiviModal()">+ Nouvelle entrée</button>
+      </div>
+      <div class="card" style="padding:10px">
+        <div class="flex-between">
+          <div>
+            <label class="muted" style="font-size:.78rem">Société :</label>
+            <select id="filtreSocSuivi" onchange="renderSuivi()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);margin-left:5px">
+              <option value="">Toutes</option>
+              <option value="ALL">Allée</option>
+              <option value="CLO">Clôture</option>
+              <option value="JAR">Jardin</option>
+            </select>
+          </div>
+          <div>
+            <label class="muted" style="font-size:.78rem">Type :</label>
+            <select id="filtreTypeSuivi" onchange="renderSuivi()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);margin-left:5px">
+              <option value="">Tous</option>
+              <option value="devis_envoye">Devis envoyé</option>
+              <option value="devis_signe">Devis signé</option>
+              <option value="facture">Facture</option>
+              <option value="encaissement">Encaissement</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <ul class="item-list" id="listSuivi"></ul>
+    </section>
+
+  </div>
+</div>
+
+<!-- ═══ MODALE Chantier ═══ -->
+<div class="modal-bg" id="modalChantier">
+  <form class="modal" onsubmit="saveChantierForm(event)">
+    <h2 id="titleChantierModal">Nouveau chantier</h2>
+    <input type="hidden" id="chId">
+    <div class="form-group">
+      <label>Société(s) concernée(s) *</label>
+      <div class="soc-checks" id="socChecksCh"></div>
+    </div>
+    <div class="form-group"><label>Client *</label><input id="chClient" required></div>
+    <div class="form-row">
+      <div class="form-group"><label>Téléphone</label><input id="chTel"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="chEmail"></div>
+    </div>
+    <div class="form-group"><label>Adresse</label><input id="chAdresse"></div>
+    <div class="form-row">
+      <div class="form-group"><label>CP</label><input id="chCp"></div>
+      <div class="form-group"><label>Ville</label><input id="chVille"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Statut</label>
+        <select id="chStatut">
+          <option>Prospect</option><option>Signé</option><option>En cours</option>
+          <option>Terminé</option><option>Facturé</option><option>Annulé</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Commercial</label>
+        <select id="chCommercial"></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Montant devis (€)</label><input type="number" step="0.01" id="chMontantDevis"></div>
+      <div class="form-group"><label>Montant facturé (€)</label><input type="number" step="0.01" id="chMontantFacture"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Date devis</label><input type="date" id="chDateDevis"></div>
+      <div class="form-group"><label>Date signature</label><input type="date" id="chDateSignature"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Date début</label><input type="date" id="chDateDebut"></div>
+      <div class="form-group"><label>Date fin</label><input type="date" id="chDateFin"></div>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="chNotes"></textarea></div>
+    <div class="modal-footer">
+      <button type="button" class="btn-sm" onclick="closeModal('modalChantier')">Annuler</button>
+      <button type="submit" class="btn-primary">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
+<!-- ═══ MODALE Prospect ═══ -->
+<div class="modal-bg" id="modalProspect">
+  <form class="modal" onsubmit="saveProspectForm(event)">
+    <h2 id="titleProspectModal">Nouveau prospect</h2>
+    <input type="hidden" id="prId">
+    <div class="form-group">
+      <label>Société(s) concernée(s) *</label>
+      <div class="soc-checks" id="socChecksPr"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Nom *</label><input id="prNom" required></div>
+      <div class="form-group"><label>Prénom</label><input id="prPrenom"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Téléphone</label><input id="prTel"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="prEmail"></div>
+    </div>
+    <div class="form-group"><label>Adresse</label><input id="prAdresse"></div>
+    <div class="form-row">
+      <div class="form-group"><label>CP</label><input id="prCp"></div>
+      <div class="form-group"><label>Ville</label><input id="prVille"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Statut</label>
+        <select id="prStatut">
+          <option>Nouveau</option><option>RDV pris</option><option>RDV OK</option>
+          <option>Devis envoyé</option><option>Transformé</option><option>Perdu</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Source</label>
+        <select id="prSource">
+          <option value=""></option>
+          <option>Site web</option><option>Recommandation</option><option>Salon</option>
+          <option>Passage</option><option>Publicité</option><option>Autre</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Commercial</label>
+        <select id="prCommercial"></select>
+      </div>
+      <div class="form-group"><label>Date RDV</label><input type="date" id="prDateRdv"></div>
+    </div>
+    <div class="form-group"><label>Montant estimé (€)</label><input type="number" step="0.01" id="prMontant"></div>
+    <div class="form-group"><label>Notes</label><textarea id="prNotes"></textarea></div>
+    <div class="modal-footer">
+      <button type="button" class="btn-sm" onclick="closeModal('modalProspect')">Annuler</button>
+      <button type="submit" class="btn-primary">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
+<!-- ═══ MODALE Suivi ═══ -->
+<div class="modal-bg" id="modalSuivi">
+  <form class="modal" onsubmit="saveSuiviForm(event)">
+    <h2 id="titleSuiviModal">Nouvelle entrée suivi</h2>
+    <input type="hidden" id="suId">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Date *</label>
+        <input type="date" id="suDate" required>
+      </div>
+      <div class="form-group">
+        <label>Société *</label>
+        <select id="suSociete" required>
+          <option value="ALL">Allée</option>
+          <option value="CLO">Clôture</option>
+          <option value="JAR">Jardin</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Type *</label>
+      <select id="suType" required>
+        <option value="devis_envoye">Devis envoyé</option>
+        <option value="devis_signe">Devis signé</option>
+        <option value="facture">Facture</option>
+        <option value="encaissement">Encaissement</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Client</label><input id="suClient"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Commercial</label>
+        <select id="suCommercial"></select>
+      </div>
+      <div class="form-group"><label>Montant (€)</label><input type="number" step="0.01" id="suMontant"></div>
+    </div>
+    <div class="form-group">
+      <label>Lier à un chantier (optionnel)</label>
+      <select id="suChantier"><option value="">—</option></select>
+    </div>
+    <div class="form-group">
+      <label>Lier à un prospect (optionnel)</label>
+      <select id="suProspect"><option value="">—</option></select>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="suNotes"></textarea></div>
+    <div class="modal-footer">
+      <button type="button" class="btn-sm" onclick="closeModal('modalSuivi')">Annuler</button>
+      <button type="submit" class="btn-primary">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
+<script src="./api.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const STATE = {
+  user: null,
+  societes: [],
+  chantiers: [],
+  prospects: [],
+  suivi: [],
+  users: []
+};
+
+const SOC_COLORS = { ALL: '#d97706', CLO: '#34943f', JAR: '#0ea5e9' };
+const SOC_LABELS = { ALL: 'Allée', CLO: 'Clôture', JAR: 'Jardin' };
+
+// ═══════════════════════════════════════════════════════════
+// Auth
+// ═══════════════════════════════════════════════════════════
+async function doLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const pwd   = document.getElementById('loginPwd').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.textContent = '';
+  try {
+    const res = await API.login(email, pwd);
+    if (!res.ok) { errEl.textContent = res.msg || 'Connexion refusée'; return; }
+    STATE.user = res.user;
+    localStorage.setItem('btb_user', JSON.stringify(res.user));
+    await bootApp();
+  } catch (err) {
+    errEl.textContent = 'Erreur : ' + err.message;
+  }
+}
+function doLogout() {
+  localStorage.removeItem('btb_user');
+  clearApiCache();
+  STATE.user = null;
+  document.getElementById('appView').classList.add('hidden');
+  document.getElementById('loginView').classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════
+// Boot
+// ═══════════════════════════════════════════════════════════
+async function bootApp() {
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('appView').classList.remove('hidden');
+  document.getElementById('userLabel').textContent = (STATE.user.prenom || STATE.user.email) + ' (' + (STATE.user.role || 'user') + ')';
+
+  try {
+    const data = await API.getInitialData();
+    STATE.societes = data.societes || [];
+    STATE.chantiers = data.chantiers || [];
+    STATE.prospects = data.prospects || [];
+    STATE.suivi = data.suivi || [];
+    STATE.users = data.users || [];
+
+    populateCommercialSelects();
+    await loadDashboard();
+    renderChantiers();
+    renderProspects();
+    renderSuivi();
+    badges();
+  } catch (err) {
+    alert('Erreur chargement : ' + err.message);
+  }
+}
+
+function badges() {
+  document.getElementById('badgeChantiers').textContent = STATE.chantiers.length;
+  document.getElementById('badgeProspects').textContent = STATE.prospects.length;
+  document.getElementById('badgeSuivi').textContent     = STATE.suivi.length;
+}
+
+function populateCommercialSelects() {
+  const opts = ['<option value=""></option>']
+    .concat((STATE.users || []).filter(function(u){return u.actif !== false;}).map(function(u) {
+      const label = [u.prenom, u.nom].filter(Boolean).join(' ') || u.email;
+      return '<option value="' + esc(label) + '">' + esc(label) + '</option>';
+    })).join('');
+  ['chCommercial','prCommercial','suCommercial'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// Navigation onglets
+// ═══════════════════════════════════════════════════════════
+document.getElementById('navTabs').addEventListener('click', function(e) {
+  const b = e.target.closest('button[data-tab]');
+  if (!b) return;
+  document.querySelectorAll('#navTabs button').forEach(function(x){ x.classList.remove('active'); });
+  b.classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(function(x){ x.classList.add('hidden'); });
+  document.getElementById('tab-' + b.dataset.tab).classList.remove('hidden');
+  if (b.dataset.tab === 'dashboard') loadDashboard();
+});
+
+// ═══════════════════════════════════════════════════════════
+// Dashboard
+// ═══════════════════════════════════════════════════════════
+async function loadDashboard() {
+  try {
+    const stats = await API.getDashboardStats();
+    const grid = document.getElementById('dashGrid');
+    grid.innerHTML = stats.societes.map(function(s) {
+      return '<div class="dash-societe s-' + s.code + '">' +
+        '<h3><span class="chip chip-' + s.code.toLowerCase() + '">' + s.nom + '</span> <span class="muted" style="font-size:.82rem">' + s.libelle + '</span></h3>' +
+        kpi('Chantiers actifs', s.chantiersActifs) +
+        kpi('Prospects actifs', s.prospectsActifs) +
+        kpi('CA signé du mois', fmtEuro(s.caSigneMois)) +
+        kpi('CA signé année', fmtEuro(s.caSigneAnnee)) +
+        kpi('CA facturé année', fmtEuro(s.caFactureAnnee)) +
+        kpi('Devis envoyés mois', s.nbDevisEnvoyesMois) +
+        kpi('Devis signés mois', s.nbDevisSignesMois) +
+        kpi('Taux transformation', s.tauxTransformation + ' %') +
+      '</div>';
+    }).join('');
+    const t = stats.total;
+    document.getElementById('dashTotal').innerHTML =
+      '<h3>Consolidé — 3 sociétés</h3>' +
+      '<div class="dash-total-grid">' +
+        totalKpi('Chantiers actifs', t.chantiersActifs) +
+        totalKpi('Prospects actifs', t.prospectsActifs) +
+        totalKpi('CA signé mois', fmtEuro(t.caSigneMois)) +
+        totalKpi('CA signé année', fmtEuro(t.caSigneAnnee)) +
+        totalKpi('CA facturé année', fmtEuro(t.caFactureAnnee)) +
+        totalKpi('Devis envoyés mois', t.nbDevisEnvoyesMois) +
+        totalKpi('Devis signés mois', t.nbDevisSignesMois) +
+        totalKpi('Taux transformation', t.tauxTransformation + ' %') +
+      '</div>';
+    document.getElementById('dashPeriode').textContent = 'Période : ' + stats.periode;
+  } catch (e) {
+    document.getElementById('dashGrid').innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
+  }
+}
+function kpi(label, val) { return '<div class="dash-kpi"><span>' + label + '</span><strong>' + val + '</strong></div>'; }
+function totalKpi(label, val) { return '<div class="dash-total-kpi"><div class="label">' + label + '</div><div class="value">' + val + '</div></div>'; }
+
+// ═══════════════════════════════════════════════════════════
+// Chantiers
+// ═══════════════════════════════════════════════════════════
+function renderChantiers() {
+  const fs = document.getElementById('filtreSocChantier').value;
+  const ft = document.getElementById('filtreStatutChantier').value;
+  const list = STATE.chantiers
+    .filter(function(c) { return !fs || (c.societes || []).indexOf(fs) > -1; })
+    .filter(function(c) { return !ft || c.statut === ft; })
+    .sort(function(a, b) { return (new Date(b.updatedAt || b.dateCreation || 0)) - (new Date(a.updatedAt || a.dateCreation || 0)); });
+
+  const el = document.getElementById('listChantiers');
+  if (list.length === 0) { el.innerHTML = '<div class="empty">Aucun chantier</div>'; return; }
+  el.innerHTML = list.map(function(c) {
+    const chips = (c.societes || []).map(function(s){ return '<span class="chip chip-' + s.toLowerCase() + '">' + (SOC_LABELS[s] || s) + '</span>'; }).join(' ');
+    return '<li class="item-row">' +
+      '<div class="item-main">' +
+        '<div class="item-title">' + esc(c.client || '—') + ' ' + chips + '</div>' +
+        '<div class="item-sub">' + esc(c.ref || '') + ' · ' + esc(c.statut || '') + ' · ' + esc(c.commercial || '') + ' · ' + fmtEuro(c.montantDevis) + ' devis' +
+        (c.ville ? ' · ' + esc(c.ville) : '') + '</div>' +
+      '</div>' +
+      '<div class="item-actions">' +
+        '<button class="btn-sm" data-act="edit-ch" data-id="' + esc(c.id) + '">✏</button>' +
+        '<button class="btn-sm danger" data-act="del-ch" data-id="' + esc(c.id) + '">🗑</button>' +
+      '</div></li>';
+  }).join('');
+}
+document.getElementById('listChantiers').addEventListener('click', function(e) {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const id = b.dataset.id;
+  if (b.dataset.act === 'edit-ch') openChantierModal(id);
+  else if (b.dataset.act === 'del-ch') deleteChantierAsk(id);
+});
+async function deleteChantierAsk(id) {
+  const c = STATE.chantiers.find(function(x){return x.id === id;});
+  if (!confirm('Supprimer le chantier ' + (c && c.ref || '') + ' ?')) return;
+  try {
+    await API.deleteChantier(id);
+    STATE.chantiers = STATE.chantiers.filter(function(x){return x.id !== id;});
+    renderChantiers(); badges(); loadDashboard();
+  } catch (e) { alert('Erreur : ' + e.message); }
+}
+
+function openChantierModal(id) {
+  const c = id ? STATE.chantiers.find(function(x){return x.id === id;}) : null;
+  document.getElementById('titleChantierModal').textContent = c ? 'Modifier chantier' : 'Nouveau chantier';
+  document.getElementById('chId').value              = c ? c.id : '';
+  document.getElementById('chClient').value          = c ? c.client || '' : '';
+  document.getElementById('chTel').value             = c ? c.telephone || '' : '';
+  document.getElementById('chEmail').value           = c ? c.email || '' : '';
+  document.getElementById('chAdresse').value         = c ? c.adresse || '' : '';
+  document.getElementById('chCp').value              = c ? c.cp || '' : '';
+  document.getElementById('chVille').value           = c ? c.ville || '' : '';
+  document.getElementById('chStatut').value          = c ? c.statut || 'Prospect' : 'Prospect';
+  document.getElementById('chCommercial').value      = c ? c.commercial || '' : '';
+  document.getElementById('chMontantDevis').value    = c ? c.montantDevis || '' : '';
+  document.getElementById('chMontantFacture').value  = c ? c.montantFacture || '' : '';
+  document.getElementById('chDateDevis').value       = c ? dstr(c.dateDevis) : '';
+  document.getElementById('chDateSignature').value   = c ? dstr(c.dateSignature) : '';
+  document.getElementById('chDateDebut').value       = c ? dstr(c.dateDebut) : '';
+  document.getElementById('chDateFin').value         = c ? dstr(c.dateFin) : '';
+  document.getElementById('chNotes').value           = c ? c.notes || '' : '';
+  renderSocChecks('socChecksCh', c ? (c.societes || []) : []);
+  openModal('modalChantier');
+}
+async function saveChantierForm(e) {
+  e.preventDefault();
+  const societes = collectSocChecks('socChecksCh');
+  if (societes.length === 0) { alert('Sélectionnez au moins une société.'); return; }
+  const d = {
+    id:             document.getElementById('chId').value || undefined,
+    societes:       societes,
+    client:         document.getElementById('chClient').value.trim(),
+    telephone:      document.getElementById('chTel').value.trim(),
+    email:          document.getElementById('chEmail').value.trim(),
+    adresse:        document.getElementById('chAdresse').value.trim(),
+    cp:             document.getElementById('chCp').value.trim(),
+    ville:          document.getElementById('chVille').value.trim(),
+    statut:         document.getElementById('chStatut').value,
+    commercial:     document.getElementById('chCommercial').value,
+    montantDevis:   parseFloat(document.getElementById('chMontantDevis').value) || 0,
+    montantFacture: parseFloat(document.getElementById('chMontantFacture').value) || 0,
+    dateDevis:      document.getElementById('chDateDevis').value,
+    dateSignature:  document.getElementById('chDateSignature').value,
+    dateDebut:      document.getElementById('chDateDebut').value,
+    dateFin:        document.getElementById('chDateFin').value,
+    notes:          document.getElementById('chNotes').value,
+    _user:          STATE.user && STATE.user.email
+  };
+  try {
+    await API.saveChantier(d);
+    STATE.chantiers = await API.getChantiers();
+    closeModal('modalChantier');
+    renderChantiers(); badges(); loadDashboard();
+  } catch (err) { alert('Erreur : ' + err.message); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Prospects
+// ═══════════════════════════════════════════════════════════
+function renderProspects() {
+  const fs = document.getElementById('filtreSocProspect').value;
+  const ft = document.getElementById('filtreStatutProspect').value;
+  const list = STATE.prospects
+    .filter(function(p) { return !fs || (p.societes || []).indexOf(fs) > -1; })
+    .filter(function(p) { return !ft || p.statut === ft; })
+    .sort(function(a, b) { return (new Date(b.updatedAt || b.dateCreation || 0)) - (new Date(a.updatedAt || a.dateCreation || 0)); });
+
+  const el = document.getElementById('listProspects');
+  if (list.length === 0) { el.innerHTML = '<div class="empty">Aucun prospect</div>'; return; }
+  el.innerHTML = list.map(function(p) {
+    const chips = (p.societes || []).map(function(s){ return '<span class="chip chip-' + s.toLowerCase() + '">' + (SOC_LABELS[s] || s) + '</span>'; }).join(' ');
+    const nomComplet = [p.prenom, p.nom].filter(Boolean).join(' ');
+    return '<li class="item-row">' +
+      '<div class="item-main">' +
+        '<div class="item-title">' + esc(nomComplet || '—') + ' ' + chips + '</div>' +
+        '<div class="item-sub">' + esc(p.ref || '') + ' · ' + esc(p.statut || '') + ' · ' + esc(p.commercial || '') + ' · ' + fmtEuro(p.montantEstime) + ' est.' +
+        (p.ville ? ' · ' + esc(p.ville) : '') + '</div>' +
+      '</div>' +
+      '<div class="item-actions">' +
+        (p.statut !== 'Transformé' ? '<button class="btn-sm" data-act="convert-pr" data-id="' + esc(p.id) + '" title="Convertir en chantier">→🏗</button>' : '') +
+        '<button class="btn-sm" data-act="edit-pr" data-id="' + esc(p.id) + '">✏</button>' +
+        '<button class="btn-sm danger" data-act="del-pr" data-id="' + esc(p.id) + '">🗑</button>' +
+      '</div></li>';
+  }).join('');
+}
+document.getElementById('listProspects').addEventListener('click', function(e) {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const id = b.dataset.id;
+  if (b.dataset.act === 'edit-pr') openProspectModal(id);
+  else if (b.dataset.act === 'del-pr') deleteProspectAsk(id);
+  else if (b.dataset.act === 'convert-pr') convertProspectAsk(id);
+});
+async function convertProspectAsk(id) {
+  const p = STATE.prospects.find(function(x){return x.id === id;});
+  if (!confirm('Convertir le prospect ' + ([p.prenom, p.nom].filter(Boolean).join(' ') || p.ref) + ' en chantier signé ?')) return;
+  try {
+    await API.convertProspect(id, STATE.user && STATE.user.email);
+    STATE.chantiers = await API.getChantiers();
+    STATE.prospects = await API.getProspects();
+    renderChantiers(); renderProspects(); badges(); loadDashboard();
+  } catch (e) { alert('Erreur : ' + e.message); }
+}
+async function deleteProspectAsk(id) {
+  const p = STATE.prospects.find(function(x){return x.id === id;});
+  if (!confirm('Supprimer le prospect ' + (p && p.ref || '') + ' ?')) return;
+  try {
+    await API.deleteProspect(id);
+    STATE.prospects = STATE.prospects.filter(function(x){return x.id !== id;});
+    renderProspects(); badges(); loadDashboard();
+  } catch (e) { alert('Erreur : ' + e.message); }
+}
+function openProspectModal(id) {
+  const p = id ? STATE.prospects.find(function(x){return x.id === id;}) : null;
+  document.getElementById('titleProspectModal').textContent = p ? 'Modifier prospect' : 'Nouveau prospect';
+  document.getElementById('prId').value          = p ? p.id : '';
+  document.getElementById('prNom').value         = p ? p.nom || '' : '';
+  document.getElementById('prPrenom').value      = p ? p.prenom || '' : '';
+  document.getElementById('prTel').value         = p ? p.telephone || '' : '';
+  document.getElementById('prEmail').value       = p ? p.email || '' : '';
+  document.getElementById('prAdresse').value     = p ? p.adresse || '' : '';
+  document.getElementById('prCp').value          = p ? p.cp || '' : '';
+  document.getElementById('prVille').value       = p ? p.ville || '' : '';
+  document.getElementById('prStatut').value      = p ? p.statut || 'Nouveau' : 'Nouveau';
+  document.getElementById('prSource').value      = p ? p.source || '' : '';
+  document.getElementById('prCommercial').value  = p ? p.commercial || '' : '';
+  document.getElementById('prDateRdv').value     = p ? dstr(p.dateRdv) : '';
+  document.getElementById('prMontant').value     = p ? p.montantEstime || '' : '';
+  document.getElementById('prNotes').value       = p ? p.notes || '' : '';
+  renderSocChecks('socChecksPr', p ? (p.societes || []) : []);
+  openModal('modalProspect');
+}
+async function saveProspectForm(e) {
+  e.preventDefault();
+  const societes = collectSocChecks('socChecksPr');
+  if (societes.length === 0) { alert('Sélectionnez au moins une société.'); return; }
+  const d = {
+    id:            document.getElementById('prId').value || undefined,
+    societes:      societes,
+    nom:           document.getElementById('prNom').value.trim(),
+    prenom:        document.getElementById('prPrenom').value.trim(),
+    telephone:     document.getElementById('prTel').value.trim(),
+    email:         document.getElementById('prEmail').value.trim(),
+    adresse:       document.getElementById('prAdresse').value.trim(),
+    cp:            document.getElementById('prCp').value.trim(),
+    ville:         document.getElementById('prVille').value.trim(),
+    statut:        document.getElementById('prStatut').value,
+    source:        document.getElementById('prSource').value,
+    commercial:    document.getElementById('prCommercial').value,
+    dateRdv:       document.getElementById('prDateRdv').value,
+    montantEstime: parseFloat(document.getElementById('prMontant').value) || 0,
+    notes:         document.getElementById('prNotes').value,
+    _user:         STATE.user && STATE.user.email
+  };
+  try {
+    await API.saveProspect(d);
+    STATE.prospects = await API.getProspects();
+    closeModal('modalProspect');
+    renderProspects(); badges(); loadDashboard();
+  } catch (err) { alert('Erreur : ' + err.message); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Suivi commercial
+// ═══════════════════════════════════════════════════════════
+const TYPE_LABELS = {
+  devis_envoye:  { label: 'Devis envoyé',  icon: '📤' },
+  devis_signe:   { label: 'Devis signé',   icon: '✅' },
+  facture:       { label: 'Facture',       icon: '🧾' },
+  encaissement:  { label: 'Encaissement',  icon: '💰' }
+};
+function renderSuivi() {
+  const fs = document.getElementById('filtreSocSuivi').value;
+  const ft = document.getElementById('filtreTypeSuivi').value;
+  const list = STATE.suivi
+    .filter(function(s) { return !fs || s.societe === fs; })
+    .filter(function(s) { return !ft || s.type === ft; })
+    .sort(function(a, b) { return (new Date(b.date || 0)) - (new Date(a.date || 0)); });
+
+  const el = document.getElementById('listSuivi');
+  if (list.length === 0) { el.innerHTML = '<div class="empty">Aucune entrée</div>'; return; }
+  el.innerHTML = list.map(function(s) {
+    const t = TYPE_LABELS[s.type] || { label: s.type, icon: '·' };
+    const chip = '<span class="chip chip-' + (s.societe || '').toLowerCase() + '">' + (SOC_LABELS[s.societe] || s.societe || '?') + '</span>';
+    return '<li class="item-row">' +
+      '<div class="item-main">' +
+        '<div class="item-title">' + t.icon + ' ' + t.label + ' — ' + fmtEuro(s.montant) + ' ' + chip + '</div>' +
+        '<div class="item-sub">' + fmtDate(s.date) + (s.client ? ' · ' + esc(s.client) : '') + (s.commercial ? ' · ' + esc(s.commercial) : '') + '</div>' +
+      '</div>' +
+      '<div class="item-actions">' +
+        '<button class="btn-sm" data-act="edit-su" data-id="' + esc(s.id) + '">✏</button>' +
+        '<button class="btn-sm danger" data-act="del-su" data-id="' + esc(s.id) + '">🗑</button>' +
+      '</div></li>';
+  }).join('');
+}
+document.getElementById('listSuivi').addEventListener('click', function(e) {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const id = b.dataset.id;
+  if (b.dataset.act === 'edit-su') openSuiviModal(id);
+  else if (b.dataset.act === 'del-su') deleteSuiviAsk(id);
+});
+async function deleteSuiviAsk(id) {
+  if (!confirm('Supprimer cette entrée ?')) return;
+  try {
+    await API.deleteSuivi(id);
+    STATE.suivi = STATE.suivi.filter(function(x){return x.id !== id;});
+    renderSuivi(); badges(); loadDashboard();
+  } catch (e) { alert('Erreur : ' + e.message); }
+}
+function openSuiviModal(id) {
+  const s = id ? STATE.suivi.find(function(x){return x.id === id;}) : null;
+  document.getElementById('titleSuiviModal').textContent = s ? 'Modifier entrée' : 'Nouvelle entrée suivi';
+  document.getElementById('suId').value          = s ? s.id : '';
+  document.getElementById('suDate').value        = s ? dstr(s.date) : new Date().toISOString().slice(0,10);
+  document.getElementById('suSociete').value     = s ? s.societe || 'CLO' : 'CLO';
+  document.getElementById('suType').value        = s ? s.type || 'devis_envoye' : 'devis_envoye';
+  document.getElementById('suClient').value      = s ? s.client || '' : '';
+  document.getElementById('suCommercial').value  = s ? s.commercial || '' : '';
+  document.getElementById('suMontant').value     = s ? s.montant || '' : '';
+  document.getElementById('suNotes').value       = s ? s.notes || '' : '';
+
+  // Dropdowns chantiers / prospects
+  const chOpts = ['<option value="">—</option>'].concat(STATE.chantiers.map(function(c) {
+    return '<option value="' + esc(c.id) + '"' + (s && s.chantierId === c.id ? ' selected' : '') + '>' + esc(c.ref + ' — ' + (c.client || '')) + '</option>';
+  })).join('');
+  const prOpts = ['<option value="">—</option>'].concat(STATE.prospects.map(function(p) {
+    const nom = [p.prenom, p.nom].filter(Boolean).join(' ');
+    return '<option value="' + esc(p.id) + '"' + (s && s.prospectId === p.id ? ' selected' : '') + '>' + esc(p.ref + ' — ' + nom) + '</option>';
+  })).join('');
+  document.getElementById('suChantier').innerHTML = chOpts;
+  document.getElementById('suProspect').innerHTML = prOpts;
+  openModal('modalSuivi');
+}
+async function saveSuiviForm(e) {
+  e.preventDefault();
+  const d = {
+    id:         document.getElementById('suId').value || undefined,
+    date:       document.getElementById('suDate').value,
+    societe:    document.getElementById('suSociete').value,
+    type:       document.getElementById('suType').value,
+    client:     document.getElementById('suClient').value.trim(),
+    commercial: document.getElementById('suCommercial').value,
+    montant:    parseFloat(document.getElementById('suMontant').value) || 0,
+    chantierId: document.getElementById('suChantier').value || '',
+    prospectId: document.getElementById('suProspect').value || '',
+    notes:      document.getElementById('suNotes').value,
+    _user:      STATE.user && STATE.user.email
+  };
+  try {
+    await API.saveSuivi(d);
+    STATE.suivi = await API.getSuivi();
+    closeModal('modalSuivi');
+    renderSuivi(); badges(); loadDashboard();
+  } catch (err) { alert('Erreur : ' + err.message); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Société checkboxes (partagé chantier + prospect)
+// ═══════════════════════════════════════════════════════════
+function renderSocChecks(containerId, selected) {
+  const html = ['ALL','CLO','JAR'].map(function(code) {
+    const on = (selected || []).indexOf(code) > -1;
+    return '<label class="' + (on ? 'sel-' + code : '') + '">' +
+      '<input type="checkbox" value="' + code + '"' + (on ? ' checked' : '') + '>' +
+      SOC_LABELS[code] + '</label>';
+  }).join('');
+  const el = document.getElementById(containerId);
+  el.innerHTML = html;
+  el.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      const label = cb.closest('label');
+      if (cb.checked) label.classList.add('sel-' + cb.value);
+      else label.classList.remove('sel-' + cb.value);
+    });
+  });
+}
+function collectSocChecks(containerId) {
+  return Array.from(document.getElementById(containerId).querySelectorAll('input[type=checkbox]:checked')).map(function(cb){ return cb.value; });
+}
+
+// ═══════════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtEuro(n) {
+  const v = Number(n) || 0;
+  return v.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' €';
+}
+function fmtDate(d) {
+  if (!d) return '';
+  try { return new Date(d).toLocaleDateString('fr-FR'); } catch(e) { return String(d); }
+}
+function dstr(d) {
+  if (!d) return '';
+  try { return new Date(d).toISOString().slice(0,10); } catch(e) { return ''; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Auto-login si session sauvée
+// ═══════════════════════════════════════════════════════════
+(function init() {
+  try {
+    const raw = localStorage.getItem('btb_user');
+    if (raw) {
+      STATE.user = JSON.parse(raw);
+      bootApp();
+    }
+  } catch (e) {}
+})();
+</script>
+
+</body>
+</html>
