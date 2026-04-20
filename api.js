@@ -2,8 +2,7 @@
 // BTB Pilote — Couche API avec cache localStorage
 // ============================================================
 
-// ⚠ À remplacer après déploiement GAS
-const GAS_URL = 'https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEPLOY_ID/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzybmjxfM6YPA-V5Ibi8-dzJIV0DfjXUhKSurLq1d4CGoyeNOtnjKi3Z6lL4z9oZm6DjQ/exec';
 const API_SECRET = 'BTB360-SECRET-2026';
 
 // ─── CACHE ──────────────────────────────────────────────────
