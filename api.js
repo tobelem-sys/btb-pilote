@@ -11,7 +11,7 @@ const CACHE_PREFIX = 'btb_';
 
 const CACHEABLE = new Set([
   'getInitialData', 'getChantiers', 'getProspects', 'getSuivi',
-  'getDashboardStats', 'getUsers'
+  'getPlanning', 'getDashboardStats', 'getUsers'
 ]);
 
 const INVALIDATIONS = {
@@ -21,7 +21,9 @@ const INVALIDATIONS = {
   saveProspect:   ['getProspects', 'getDashboardStats', 'getInitialData'],
   deleteProspect: ['getProspects', 'getDashboardStats', 'getInitialData'],
   saveSuivi:      ['getSuivi', 'getDashboardStats', 'getInitialData'],
-  deleteSuivi:    ['getSuivi', 'getDashboardStats', 'getInitialData']
+  deleteSuivi:    ['getSuivi', 'getDashboardStats', 'getInitialData'],
+  savePlanning:   ['getPlanning', 'getInitialData'],
+  deletePlanning: ['getPlanning', 'getInitialData']
 };
 
 function _cacheKey(action, params) {
@@ -99,6 +101,7 @@ const API = {
   getChantiers:   ()            => apiGet('getChantiers'),
   getProspects:   ()            => apiGet('getProspects'),
   getSuivi:       ()            => apiGet('getSuivi'),
+  getPlanning:    ()            => apiGet('getPlanning'),
   getDashboardStats: ()         => apiGet('getDashboardStats'),
   getUsers:       ()            => apiGet('getUsers'),
 
@@ -110,5 +113,8 @@ const API = {
   deleteProspect:  (id) => apiPost('deleteProspect', { id }),
 
   saveSuivi:       (d)  => apiPost('saveSuivi', d),
-  deleteSuivi:     (id) => apiPost('deleteSuivi', { id })
+  deleteSuivi:     (id) => apiPost('deleteSuivi', { id }),
+
+  savePlanning:    (d)  => apiPost('savePlanning', d),
+  deletePlanning:  (id) => apiPost('deletePlanning', { id })
 };

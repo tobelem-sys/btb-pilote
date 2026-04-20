@@ -180,6 +180,62 @@ a { color: var(--primary); }
 .login-card .subtitle { text-align: center; color: var(--muted); font-size: .82rem; margin-bottom: 18px; }
 .login-err { color: var(--red); font-size: .82rem; margin-top: 8px; text-align: center; }
 
+/* ─── Planning / Gantt ─── */
+.gantt-toolbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.gantt-toolbar .mode-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+.gantt-toolbar .mode-switch button {
+  padding: 6px 12px; border: 0; background: #fff; font-weight: 600; font-size: .82rem; color: var(--muted);
+}
+.gantt-toolbar .mode-switch button.active { background: var(--primary); color: #fff; }
+.gantt-toolbar .nav-btn { padding: 6px 10px; border: 1px solid var(--border); background: #fff; border-radius: 7px; font-size: .82rem; font-weight: 600; }
+.gantt-toolbar .nav-btn:hover { background: #f3f4f6; }
+.gantt-period { color: var(--muted); font-size: .82rem; margin-left: 4px; }
+
+.gantt-wrap {
+  overflow-x: auto; background: #fff; border: 1px solid var(--border);
+  border-radius: 10px; -webkit-overflow-scrolling: touch;
+}
+.gantt-header-row, .gantt-row {
+  display: flex; min-width: 760px; border-bottom: 1px solid #f3f4f6;
+}
+.gantt-header-row { background: #f9fafb; position: sticky; top: 0; z-index: 2; }
+.gantt-client {
+  flex: 0 0 150px; padding: 8px 10px; border-right: 1px solid var(--border);
+  font-size: .85rem; font-weight: 600; color: var(--text);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  background: #fff; position: sticky; left: 0; z-index: 1;
+}
+.gantt-header-row .gantt-client { background: #f9fafb; font-weight: 700; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+.gantt-track { position: relative; flex: 1; min-height: 40px; background-image: linear-gradient(to right, #eef0f3 1px, transparent 1px); background-size: calc(100% / var(--cols, 8)) 100%; }
+.gantt-header-row .gantt-track { display: grid; min-height: auto; background-image: none; }
+.gantt-header-row .gantt-cell {
+  text-align: center; padding: 7px 2px; border-right: 1px solid #eef0f3;
+  font-size: .72rem; color: var(--muted); font-weight: 600;
+}
+.gantt-header-row .gantt-cell.today { background: #fef3c7; color: var(--text); }
+.gantt-header-row .gantt-cell.week-start { border-left: 2px solid var(--border); }
+.gantt-bar {
+  position: absolute; top: 5px; bottom: 5px;
+  border-radius: 5px; padding: 4px 8px; font-size: .72rem; font-weight: 700;
+  color: #fff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  cursor: pointer; border: 0; box-shadow: 0 1px 2px rgba(0,0,0,.12);
+  display: flex; align-items: center;
+}
+.gantt-bar:hover { filter: brightness(1.06); box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+.gantt-bar.s-ALL { background: var(--all); }
+.gantt-bar.s-CLO { background: var(--clo); color: #1a171b; }
+.gantt-bar.s-JAR { background: var(--jar); }
+.gantt-bar.done { opacity: .55; }
+.gantt-bar.cancel { opacity: .4; text-decoration: line-through; }
+.gantt-legend { display: flex; gap: 12px; font-size: .78rem; color: var(--muted); margin-top: 8px; flex-wrap: wrap; }
+.gantt-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.gantt-legend .lg-ALL::before { background: var(--all); }
+.gantt-legend .lg-CLO::before { background: var(--clo); }
+.gantt-legend .lg-JAR::before { background: var(--jar); }
+
 /* ─── Helpers ─── */
 .empty { text-align: center; color: var(--muted); padding: 30px 16px; }
 .flex-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
@@ -232,6 +288,7 @@ a { color: var(--primary); }
       <button data-tab="chantiers">🏗 Chantiers</button>
       <button data-tab="prospects">🎯 Prospects</button>
       <button data-tab="suivi">📈 Suivi commercial</button>
+      <button data-tab="planning">📅 Planning</button>
     </nav>
 
     <!-- Dashboard -->
@@ -344,6 +401,33 @@ a { color: var(--primary); }
       <ul class="item-list" id="listSuivi"></ul>
     </section>
 
+    <!-- Planning -->
+    <section id="tab-planning" class="tab-content hidden">
+      <div class="flex-between" style="margin-bottom:10px">
+        <h2 style="margin:0;font-size:1.15rem">Planning <span class="badge-stat" id="badgePlanning">0</span></h2>
+        <button class="btn-primary" onclick="openPlanningModal()">+ Nouvelle intervention</button>
+      </div>
+      <div class="gantt-toolbar">
+        <div class="mode-switch">
+          <button id="pmDay">Jour</button>
+          <button id="pmWeek" class="active">Semaine</button>
+        </div>
+        <button class="nav-btn" id="pmPrev">← Précédent</button>
+        <button class="nav-btn" id="pmToday">Aujourd'hui</button>
+        <button class="nav-btn" id="pmNext">Suivant →</button>
+        <span class="gantt-period" id="planningPeriode"></span>
+      </div>
+      <div class="gantt-wrap">
+        <div class="gantt-header-row" id="ganttHeader"></div>
+        <div id="ganttBody"></div>
+      </div>
+      <div class="gantt-legend">
+        <span class="lg-ALL">Allée</span>
+        <span class="lg-CLO">Clôture</span>
+        <span class="lg-JAR">Jardin</span>
+      </div>
+    </section>
+
   </div>
 </div>
 
@@ -454,6 +538,52 @@ a { color: var(--primary); }
   </form>
 </div>
 
+<!-- ═══ MODALE Planning ═══ -->
+<div class="modal-bg" id="modalPlanning">
+  <form class="modal" onsubmit="savePlanningForm(event)">
+    <h2 id="titlePlanningModal">Nouvelle intervention</h2>
+    <input type="hidden" id="plId">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Client *</label>
+        <input id="plClient" required list="plClientsList">
+        <datalist id="plClientsList"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Enseigne *</label>
+        <select id="plEnseigne" required>
+          <option value="ALL">Allée</option>
+          <option value="CLO">Clôture</option>
+          <option value="JAR">Jardin</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Tâche *</label>
+      <input id="plTache" required placeholder="Ex. Pose clôture, Dallage allée…">
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Date début *</label><input type="date" id="plDateDebut" required></div>
+      <div class="form-group"><label>Date fin *</label><input type="date" id="plDateFin" required></div>
+    </div>
+    <div class="form-group">
+      <label>Statut</label>
+      <select id="plStatut">
+        <option>Planifié</option>
+        <option>En cours</option>
+        <option>Terminé</option>
+        <option>Annulé</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Note</label><textarea id="plNote"></textarea></div>
+    <div class="modal-footer">
+      <button type="button" class="btn-sm danger" id="plDeleteBtn" onclick="deletePlanningAsk()" style="margin-right:auto">Supprimer</button>
+      <button type="button" class="btn-sm" onclick="closeModal('modalPlanning')">Annuler</button>
+      <button type="submit" class="btn-primary">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
 <!-- ═══ MODALE Suivi ═══ -->
 <div class="modal-bg" id="modalSuivi">
   <form class="modal" onsubmit="saveSuiviForm(event)">
@@ -517,10 +647,13 @@ const STATE = {
   chantiers: [],
   prospects: [],
   suivi: [],
-  users: []
+  planning: [],
+  users: [],
+  planningMode: 'week',     // 'day' | 'week'
+  planningOffset: 0         // décalage en semaines (0 = semaine courante)
 };
 
-const SOC_COLORS = { ALL: '#d97706', CLO: '#34943f', JAR: '#0ea5e9' };
+const SOC_COLORS = { ALL: '#cb282b', CLO: '#f1cb00', JAR: '#90c315' };
 const SOC_LABELS = { ALL: 'Allée', CLO: 'Clôture', JAR: 'Jardin' };
 
 // ═══════════════════════════════════════════════════════════
@@ -564,6 +697,7 @@ async function bootApp() {
     STATE.chantiers = data.chantiers || [];
     STATE.prospects = data.prospects || [];
     STATE.suivi = data.suivi || [];
+    STATE.planning = data.planning || [];
     STATE.users = data.users || [];
 
     populateCommercialSelects();
@@ -571,6 +705,7 @@ async function bootApp() {
     renderChantiers();
     renderProspects();
     renderSuivi();
+    renderPlanning();
     badges();
   } catch (err) {
     alert('Erreur chargement : ' + err.message);
@@ -581,6 +716,7 @@ function badges() {
   document.getElementById('badgeChantiers').textContent = STATE.chantiers.length;
   document.getElementById('badgeProspects').textContent = STATE.prospects.length;
   document.getElementById('badgeSuivi').textContent     = STATE.suivi.length;
+  document.getElementById('badgePlanning').textContent  = STATE.planning.length;
 }
 
 function populateCommercialSelects() {
@@ -606,6 +742,7 @@ document.getElementById('navTabs').addEventListener('click', function(e) {
   document.querySelectorAll('.tab-content').forEach(function(x){ x.classList.add('hidden'); });
   document.getElementById('tab-' + b.dataset.tab).classList.remove('hidden');
   if (b.dataset.tab === 'dashboard') loadDashboard();
+  if (b.dataset.tab === 'planning')  renderPlanning();
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -946,6 +1083,196 @@ async function saveSuiviForm(e) {
     closeModal('modalSuivi');
     renderSuivi(); badges(); loadDashboard();
   } catch (err) { alert('Erreur : ' + err.message); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Planning (Gantt commun Allée / Clôture / Jardin)
+// ═══════════════════════════════════════════════════════════
+const PLANNING_WEEKS = 8;
+
+function mondayOf(d) {
+  const m = new Date(d);
+  m.setHours(0, 0, 0, 0);
+  const day = m.getDay() || 7;          // dimanche → 7
+  m.setDate(m.getDate() - (day - 1));
+  return m;
+}
+function isoWeekNum(d) {
+  const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = x.getUTCDay() || 7;
+  x.setUTCDate(x.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+  return Math.ceil((((x - y0) / 86400000) + 1) / 7);
+}
+function diffDays(a, b) {
+  return Math.floor((b - a) / 86400000);
+}
+
+function renderPlanning() {
+  const mode = STATE.planningMode;
+  const startMonday = mondayOf(new Date());
+  startMonday.setDate(startMonday.getDate() + STATE.planningOffset * 7);
+
+  const nbDays  = PLANNING_WEEKS * 7;
+  const units   = mode === 'day' ? nbDays : PLANNING_WEEKS;
+  const endDate = new Date(startMonday); endDate.setDate(endDate.getDate() + nbDays - 1);
+
+  // Toolbar état
+  document.getElementById('pmDay').classList.toggle('active', mode === 'day');
+  document.getElementById('pmWeek').classList.toggle('active', mode === 'week');
+  document.getElementById('planningPeriode').textContent =
+    'Du ' + fmtDate(startMonday) + ' au ' + fmtDate(endDate) +
+    ' · ' + PLANNING_WEEKS + ' semaines';
+
+  // Header
+  const today = new Date(); today.setHours(0,0,0,0);
+  let header = '';
+  if (mode === 'day') {
+    for (let i = 0; i < nbDays; i++) {
+      const d = new Date(startMonday); d.setDate(d.getDate() + i);
+      const isMon = d.getDay() === 1;
+      const isToday = d.getTime() === today.getTime();
+      header += '<div class="gantt-cell' +
+        (isMon && i > 0 ? ' week-start' : '') +
+        (isToday ? ' today' : '') + '">' +
+        d.getDate() + '/' + (d.getMonth() + 1) + '</div>';
+    }
+  } else {
+    for (let i = 0; i < PLANNING_WEEKS; i++) {
+      const d = new Date(startMonday); d.setDate(d.getDate() + i * 7);
+      const inWeek = today >= d && today < new Date(d.getTime() + 7 * 86400000);
+      header += '<div class="gantt-cell' + (inWeek ? ' today' : '') + '">S' + isoWeekNum(d) + '</div>';
+    }
+  }
+  const gridCols = 'repeat(' + units + ', 1fr)';
+  document.getElementById('ganttHeader').innerHTML =
+    '<div class="gantt-client">Client</div>' +
+    '<div class="gantt-track" style="--cols:' + units + ';grid-template-columns:' + gridCols + '">' + header + '</div>';
+
+  // Regroupement par client
+  const byClient = {};
+  (STATE.planning || []).forEach(function(p) {
+    const k = (p.client || '').trim();
+    if (!k) return;
+    (byClient[k] = byClient[k] || []).push(p);
+  });
+  const clientNames = Object.keys(byClient).sort(function(a, b) { return a.localeCompare(b, 'fr'); });
+
+  let rowsHtml = '';
+  clientNames.forEach(function(name) {
+    let bars = '';
+    byClient[name].forEach(function(p) {
+      if (!p.dateDebut) return;
+      const deb = new Date(p.dateDebut);
+      const fin = new Date(p.dateFin || p.dateDebut);
+      deb.setHours(0,0,0,0); fin.setHours(0,0,0,0);
+      let startUnit, endUnit;
+      if (mode === 'day') {
+        startUnit = diffDays(startMonday, deb);
+        endUnit   = diffDays(startMonday, fin);
+      } else {
+        startUnit = Math.floor(diffDays(startMonday, deb) / 7);
+        endUnit   = Math.floor(diffDays(startMonday, fin) / 7);
+      }
+      if (endUnit < 0 || startUnit >= units) return;
+      const s = Math.max(0, startUnit);
+      const e = Math.min(units - 1, endUnit);
+      const span = e - s + 1;
+      const left  = (s / units * 100).toFixed(3);
+      const width = (span / units * 100).toFixed(3);
+      const cls = 's-' + (p.enseigne || '').toUpperCase() +
+        (p.statut === 'Terminé' ? ' done' : '') +
+        (p.statut === 'Annulé'  ? ' cancel' : '');
+      const title = (p.tache || '') +
+        ' — ' + (SOC_LABELS[p.enseigne] || p.enseigne || '') +
+        ' · ' + fmtDate(p.dateDebut) + ' → ' + fmtDate(p.dateFin) +
+        (p.statut ? ' · ' + p.statut : '') +
+        (p.note ? '\n' + p.note : '');
+      bars += '<div class="gantt-bar ' + cls +
+        '" style="left:' + left + '%;width:' + width + '%"' +
+        ' data-act="edit-pl" data-id="' + esc(p.id) + '"' +
+        ' title="' + esc(title) + '">' + esc(p.tache || '—') + '</div>';
+    });
+    rowsHtml += '<div class="gantt-row">' +
+      '<div class="gantt-client" title="' + esc(name) + '">' + esc(name) + '</div>' +
+      '<div class="gantt-track" style="--cols:' + units + '">' + bars + '</div></div>';
+  });
+
+  const body = document.getElementById('ganttBody');
+  body.innerHTML = rowsHtml || '<div class="empty">Aucune intervention planifiée. Cliquez sur « + Nouvelle intervention » pour démarrer.</div>';
+}
+
+// Toolbar planning
+document.getElementById('pmDay').addEventListener('click', function() { STATE.planningMode = 'day';  renderPlanning(); });
+document.getElementById('pmWeek').addEventListener('click', function() { STATE.planningMode = 'week'; renderPlanning(); });
+document.getElementById('pmPrev').addEventListener('click', function() { STATE.planningOffset--; renderPlanning(); });
+document.getElementById('pmNext').addEventListener('click', function() { STATE.planningOffset++; renderPlanning(); });
+document.getElementById('pmToday').addEventListener('click', function() { STATE.planningOffset = 0; renderPlanning(); });
+
+// Clic sur une barre → édition
+document.getElementById('ganttBody').addEventListener('click', function(e) {
+  const b = e.target.closest('[data-act="edit-pl"]');
+  if (!b) return;
+  openPlanningModal(b.dataset.id);
+});
+
+function openPlanningModal(id) {
+  const p = id ? STATE.planning.find(function(x) { return x.id === id; }) : null;
+  document.getElementById('titlePlanningModal').textContent = p ? 'Modifier intervention' : 'Nouvelle intervention';
+  document.getElementById('plId').value         = p ? p.id : '';
+  document.getElementById('plClient').value     = p ? (p.client || '') : '';
+  document.getElementById('plEnseigne').value   = p ? (p.enseigne || 'ALL') : 'ALL';
+  document.getElementById('plTache').value      = p ? (p.tache || '') : '';
+  document.getElementById('plDateDebut').value  = p ? dstr(p.dateDebut) : new Date().toISOString().slice(0, 10);
+  document.getElementById('plDateFin').value    = p ? dstr(p.dateFin)   : new Date().toISOString().slice(0, 10);
+  document.getElementById('plStatut').value     = p ? (p.statut || 'Planifié') : 'Planifié';
+  document.getElementById('plNote').value       = p ? (p.note || '') : '';
+  document.getElementById('plDeleteBtn').style.display = p ? '' : 'none';
+
+  // Datalist clients (depuis chantiers + planning existant)
+  const names = {};
+  STATE.chantiers.forEach(function(c) { if (c.client) names[c.client] = 1; });
+  STATE.planning.forEach(function(x) { if (x.client) names[x.client] = 1; });
+  document.getElementById('plClientsList').innerHTML =
+    Object.keys(names).sort().map(function(n) { return '<option value="' + esc(n) + '">'; }).join('');
+
+  openModal('modalPlanning');
+}
+
+async function savePlanningForm(e) {
+  e.preventDefault();
+  const debut = document.getElementById('plDateDebut').value;
+  const fin   = document.getElementById('plDateFin').value;
+  if (debut && fin && fin < debut) { alert('La date de fin doit être ≥ date de début.'); return; }
+  const d = {
+    id:         document.getElementById('plId').value || undefined,
+    client:     document.getElementById('plClient').value.trim(),
+    enseigne:   document.getElementById('plEnseigne').value,
+    tache:      document.getElementById('plTache').value.trim(),
+    dateDebut:  debut,
+    dateFin:    fin,
+    statut:     document.getElementById('plStatut').value,
+    note:       document.getElementById('plNote').value,
+    _user:      STATE.user && STATE.user.email
+  };
+  try {
+    await API.savePlanning(d);
+    STATE.planning = await API.getPlanning();
+    closeModal('modalPlanning');
+    renderPlanning(); badges();
+  } catch (err) { alert('Erreur : ' + err.message); }
+}
+
+async function deletePlanningAsk() {
+  const id = document.getElementById('plId').value;
+  if (!id) return;
+  if (!confirm('Supprimer cette intervention ?')) return;
+  try {
+    await API.deletePlanning(id);
+    STATE.planning = STATE.planning.filter(function(x) { return x.id !== id; });
+    closeModal('modalPlanning');
+    renderPlanning(); badges();
+  } catch (e) { alert('Erreur : ' + e.message); }
 }
 
 // ═══════════════════════════════════════════════════════════
