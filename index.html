@@ -37,17 +37,10 @@ a { color: var(--primary); }
   box-shadow: 0 2px 4px rgba(0,0,0,.1);
 }
 .app-logo {
-  display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.02rem;
+  display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.02rem;
 }
-.app-logo .triple {
-  display: inline-flex; gap: 2px;
-}
-.app-logo .triple span {
-  width: 8px; height: 18px; border-radius: 2px;
-}
-.app-logo .triple .s1 { background: var(--all); }
-.app-logo .triple .s2 { background: var(--clo); }
-.app-logo .triple .s3 { background: var(--jar); }
+.app-logo img { height: 28px; width: auto; display: block; }
+.app-logo .sep { opacity: .35; font-weight: 400; }
 .header-actions { display: flex; align-items: center; gap: 10px; font-size: .82rem; }
 .header-actions button {
   background: rgba(255,255,255,.12); color: #fff; border: 0; padding: 6px 10px; border-radius: 6px; font-size: .78rem;
@@ -177,9 +170,8 @@ a { color: var(--primary); }
   background: linear-gradient(135deg, #1f2937 0%, #111827 100%); padding: 16px;
 }
 .login-card { background: #fff; border-radius: 16px; padding: 30px 26px; max-width: 380px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,.25); }
-.login-card h1 { margin: 0 0 6px; font-size: 1.35rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px; }
-.login-card .triple { display: inline-flex; gap: 3px; }
-.login-card .triple span { width: 10px; height: 22px; border-radius: 3px; }
+.login-card h1 { margin: 0 0 4px; font-size: 1.15rem; text-align: center; }
+.login-card .brand-logo { display: block; margin: 0 auto 14px; max-width: 260px; width: 100%; height: auto; }
 .login-card .subtitle { text-align: center; color: var(--muted); font-size: .82rem; margin-bottom: 18px; }
 .login-err { color: var(--red); font-size: .82rem; margin-top: 8px; text-align: center; }
 
@@ -197,10 +189,8 @@ a { color: var(--primary); }
 <!-- ═══ LOGIN ═══ -->
 <div id="loginView" class="login-wrap">
   <form class="login-card" onsubmit="doLogin(event)">
-    <h1>
-      <span class="triple"><span style="background:#d97706"></span><span style="background:#34943f"></span><span style="background:#0ea5e9"></span></span>
-      BTB Pilote
-    </h1>
+    <img class="brand-logo" src="./logo-moquet.png" alt="Daniel Moquet — Le spécialiste de vos extérieurs">
+    <h1>BTB Pilote</h1>
     <div class="subtitle">Allée · Clôture · Jardin</div>
     <div class="form-group">
       <label>Email</label>
@@ -220,7 +210,8 @@ a { color: var(--primary); }
 
   <header class="app-header">
     <div class="app-logo">
-      <span class="triple"><span class="s1"></span><span class="s2"></span><span class="s3"></span></span>
+      <img src="./logo-moquet-white.png" alt="Daniel Moquet">
+      <span class="sep">|</span>
       BTB Pilote
     </div>
     <div class="header-actions">
