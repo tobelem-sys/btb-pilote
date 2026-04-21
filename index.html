@@ -218,11 +218,11 @@ a { color: var(--primary); }
 .gantt-header-row .gantt-cell.today { background: #fef3c7; color: var(--text); }
 .gantt-header-row .gantt-cell.week-start { border-left: 2px solid var(--border); }
 .gantt-bar {
-  position: absolute; top: 5px; bottom: 5px;
-  border-radius: 5px; padding: 4px 8px; font-size: .72rem; font-weight: 700;
+  position: absolute; top: 4px; bottom: 4px;
+  border-radius: 5px; padding: 3px 6px; font-size: .70rem; font-weight: 700;
   color: #fff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   cursor: pointer; border: 0; box-shadow: 0 1px 2px rgba(0,0,0,.12);
-  display: flex; align-items: center;
+  display: flex; align-items: center; z-index: 1;
 }
 .gantt-bar:hover { filter: brightness(1.06); box-shadow: 0 2px 6px rgba(0,0,0,.18); }
 .gantt-bar.s-ALL { background: var(--all); }
@@ -230,6 +230,36 @@ a { color: var(--primary); }
 .gantt-bar.s-JAR { background: var(--jar); }
 .gantt-bar.done { opacity: .55; }
 .gantt-bar.cancel { opacity: .4; text-decoration: line-through; }
+/* Weekend overlay (mode jour) */
+.gantt-we {
+  position: absolute; top: 0; bottom: 0;
+  background: rgba(0,0,0,.06); pointer-events: none; z-index: 0;
+}
+.gantt-header-row .gantt-cell.weekend { background: #ededf0; color: #b8b8c0; }
+/* Sous-lignes par enseigne */
+.gantt-row-group { display: flex; min-width: 760px; border-bottom: 1px solid #e5e7eb; }
+.gantt-client-group {
+  flex: 0 0 110px; padding: 0 8px;
+  border-right: 1px solid var(--border);
+  font-size: .80rem; font-weight: 600; color: var(--text);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  background: #fff; position: sticky; left: 0; z-index: 2;
+  display: flex; align-items: center;
+}
+.gantt-subrows { flex: 1; display: flex; flex-direction: column; }
+.gantt-subrow { display: flex; border-bottom: 1px solid #f3f4f6; }
+.gantt-subrow:last-child { border-bottom: 0; }
+.gantt-ens-tag {
+  flex: 0 0 40px; font-size: .60rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .03em;
+  display: flex; align-items: center; justify-content: center;
+  border-right: 1px solid var(--border);
+  position: sticky; left: 110px; z-index: 1;
+}
+.gantt-ens-tag.s-ALL { color: var(--all);  background: #fff5f5; }
+.gantt-ens-tag.s-CLO { color: #a07c00;     background: #fffde6; }
+.gantt-ens-tag.s-JAR { color: #5a8000;     background: #f4ffe0; }
+.gantt-subrow .gantt-track { min-height: 34px; }
 .gantt-legend { display: flex; gap: 12px; font-size: .78rem; color: var(--muted); margin-top: 8px; flex-wrap: wrap; }
 .gantt-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 .gantt-legend .lg-ALL::before { background: var(--all); }
@@ -1124,18 +1154,30 @@ function renderPlanning() {
     'Du ' + fmtDate(startMonday) + ' au ' + fmtDate(endDate) +
     ' · ' + PLANNING_WEEKS + ' semaines';
 
-  // Header
+  // Header + calcul des overlays weekend
   const today = new Date(); today.setHours(0,0,0,0);
   let header = '';
+  let weekendOverlay = '';
+
   if (mode === 'day') {
     for (let i = 0; i < nbDays; i++) {
       const d = new Date(startMonday); d.setDate(d.getDate() + i);
-      const isMon = d.getDay() === 1;
-      const isToday = d.getTime() === today.getTime();
+      const dw = d.getDay();
+      const isMon    = dw === 1;
+      const isToday  = d.getTime() === today.getTime();
+      const isWe     = dw === 0 || dw === 6;
       header += '<div class="gantt-cell' +
         (isMon && i > 0 ? ' week-start' : '') +
-        (isToday ? ' today' : '') + '">' +
+        (isToday ? ' today' : '') +
+        (isWe    ? ' weekend' : '') + '">' +
         d.getDate() + '/' + (d.getMonth() + 1) + '</div>';
+      // Début de weekend = samedi → bande de 2 jours
+      if (dw === 6) {
+        const span  = Math.min(2, nbDays - i);
+        const left  = (i / nbDays * 100).toFixed(3);
+        const width = (span / nbDays * 100).toFixed(3);
+        weekendOverlay += '<div class="gantt-we" style="left:' + left + '%;width:' + width + '%"></div>';
+      }
     }
   } else {
     for (let i = 0; i < PLANNING_WEEKS; i++) {
@@ -1144,12 +1186,13 @@ function renderPlanning() {
       header += '<div class="gantt-cell' + (inWeek ? ' today' : '') + '">S' + isoWeekNum(d) + '</div>';
     }
   }
+
   const gridCols = 'repeat(' + units + ', 1fr)';
   document.getElementById('ganttHeader').innerHTML =
     '<div class="gantt-client">Client</div>' +
     '<div class="gantt-track" style="--cols:' + units + ';grid-template-columns:' + gridCols + '">' + header + '</div>';
 
-  // Regroupement par client
+  // Regroupement par client puis par enseigne
   const byClient = {};
   (STATE.planning || []).forEach(function(p) {
     const k = (p.client || '').trim();
@@ -1158,44 +1201,67 @@ function renderPlanning() {
   });
   const clientNames = Object.keys(byClient).sort(function(a, b) { return a.localeCompare(b, 'fr'); });
 
+  // Helper : barre HTML pour une intervention
+  function barHtml(p) {
+    if (!p.dateDebut) return '';
+    const deb = new Date(p.dateDebut);
+    const fin = new Date(p.dateFin || p.dateDebut);
+    deb.setHours(0,0,0,0); fin.setHours(0,0,0,0);
+    let startUnit, endUnit;
+    if (mode === 'day') {
+      startUnit = diffDays(startMonday, deb);
+      endUnit   = diffDays(startMonday, fin);
+    } else {
+      startUnit = Math.floor(diffDays(startMonday, deb) / 7);
+      endUnit   = Math.floor(diffDays(startMonday, fin) / 7);
+    }
+    if (endUnit < 0 || startUnit >= units) return '';
+    const s = Math.max(0, startUnit);
+    const e = Math.min(units - 1, endUnit);
+    const span  = e - s + 1;
+    const left  = (s / units * 100).toFixed(3);
+    const width = (span / units * 100).toFixed(3);
+    const cls = 's-' + (p.enseigne || '').toUpperCase() +
+      (p.statut === 'Terminé' ? ' done' : '') +
+      (p.statut === 'Annulé'  ? ' cancel' : '');
+    const title = (p.tache || '') +
+      ' — ' + (SOC_LABELS[p.enseigne] || p.enseigne || '') +
+      ' · ' + fmtDate(p.dateDebut) + ' → ' + fmtDate(p.dateFin) +
+      (p.statut ? ' · ' + p.statut : '') +
+      (p.note ? '\n' + p.note : '');
+    return '<div class="gantt-bar ' + cls +
+      '" style="left:' + left + '%;width:' + width + '%"' +
+      ' data-act="edit-pl" data-id="' + esc(p.id) + '"' +
+      ' title="' + esc(title) + '">' + esc(p.tache || '—') + '</div>';
+  }
+
   let rowsHtml = '';
+  const ENS_ORDER = ['ALL', 'CLO', 'JAR'];
+
   clientNames.forEach(function(name) {
-    let bars = '';
+    // Grouper par enseigne
+    const byEns = {};
     byClient[name].forEach(function(p) {
-      if (!p.dateDebut) return;
-      const deb = new Date(p.dateDebut);
-      const fin = new Date(p.dateFin || p.dateDebut);
-      deb.setHours(0,0,0,0); fin.setHours(0,0,0,0);
-      let startUnit, endUnit;
-      if (mode === 'day') {
-        startUnit = diffDays(startMonday, deb);
-        endUnit   = diffDays(startMonday, fin);
-      } else {
-        startUnit = Math.floor(diffDays(startMonday, deb) / 7);
-        endUnit   = Math.floor(diffDays(startMonday, fin) / 7);
-      }
-      if (endUnit < 0 || startUnit >= units) return;
-      const s = Math.max(0, startUnit);
-      const e = Math.min(units - 1, endUnit);
-      const span = e - s + 1;
-      const left  = (s / units * 100).toFixed(3);
-      const width = (span / units * 100).toFixed(3);
-      const cls = 's-' + (p.enseigne || '').toUpperCase() +
-        (p.statut === 'Terminé' ? ' done' : '') +
-        (p.statut === 'Annulé'  ? ' cancel' : '');
-      const title = (p.tache || '') +
-        ' — ' + (SOC_LABELS[p.enseigne] || p.enseigne || '') +
-        ' · ' + fmtDate(p.dateDebut) + ' → ' + fmtDate(p.dateFin) +
-        (p.statut ? ' · ' + p.statut : '') +
-        (p.note ? '\n' + p.note : '');
-      bars += '<div class="gantt-bar ' + cls +
-        '" style="left:' + left + '%;width:' + width + '%"' +
-        ' data-act="edit-pl" data-id="' + esc(p.id) + '"' +
-        ' title="' + esc(title) + '">' + esc(p.tache || '—') + '</div>';
+      const e = (p.enseigne || '').toUpperCase();
+      (byEns[e] = byEns[e] || []).push(p);
     });
-    rowsHtml += '<div class="gantt-row">' +
-      '<div class="gantt-client" title="' + esc(name) + '">' + esc(name) + '</div>' +
-      '<div class="gantt-track" style="--cols:' + units + '">' + bars + '</div></div>';
+    // Seulement les enseignes qui ont des interventions
+    const activeEns = ENS_ORDER.filter(function(e) { return byEns[e] && byEns[e].length > 0; });
+
+    let subRows = '';
+    activeEns.forEach(function(ens) {
+      let bars = weekendOverlay; // overlays weekend d'abord (z-index 0)
+      byEns[ens].forEach(function(p) { bars += barHtml(p); });
+      subRows += '<div class="gantt-subrow">' +
+        '<div class="gantt-ens-tag s-' + ens + '">' + ens + '</div>' +
+        '<div class="gantt-track" style="--cols:' + units + '">' + bars + '</div>' +
+        '</div>';
+    });
+
+    rowsHtml += '<div class="gantt-row-group">' +
+      '<div class="gantt-client-group" title="' + esc(name) + '">' + esc(name) + '</div>' +
+      '<div class="gantt-subrows">' + subRows + '</div>' +
+      '</div>';
   });
 
   const body = document.getElementById('ganttBody');
