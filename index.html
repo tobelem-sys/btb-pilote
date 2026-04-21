@@ -238,7 +238,12 @@ a { color: var(--primary); }
 }
 .gantt-header-row .gantt-cell.weekend { background: #ededf0; color: #b8b8c0; }
 /* Sous-lignes par enseigne */
-.gantt-row-group { display: flex; min-width: 760px; border-bottom: 1px solid #e5e7eb; }
+.gantt-row-group { display: flex; min-width: 760px; border-bottom: 3px solid #c8cfd9; }
+.gantt-row-group:nth-child(even) .gantt-client-group,
+.gantt-row-group:nth-child(even) .gantt-subrows { background: #f7f9fc; }
+.gantt-row-group:nth-child(even) .gantt-ens-tag.s-ALL { background: #f0f4f4; }
+.gantt-row-group:nth-child(even) .gantt-ens-tag.s-CLO { background: #f7f5dc; }
+.gantt-row-group:nth-child(even) .gantt-ens-tag.s-JAR { background: #eef8d8; }
 .gantt-client-group {
   flex: 0 0 110px; padding: 0 8px;
   border-right: 1px solid var(--border);
