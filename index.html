@@ -221,11 +221,22 @@ a { color: var(--primary); }
 .gantt-bar {
   position: absolute; top: 4px; bottom: 4px;
   border-radius: 5px; padding: 3px 6px; font-size: .70rem; font-weight: 700;
-  color: #fff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  cursor: pointer; border: 0; box-shadow: 0 1px 2px rgba(0,0,0,.12);
+  color: #fff; overflow: hidden;
+  cursor: grab; border: 0; box-shadow: 0 1px 2px rgba(0,0,0,.12);
   display: flex; align-items: center; z-index: 1;
 }
 .gantt-bar:hover { filter: brightness(1.06); box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+.gantt-bar.dragging { opacity: .82; box-shadow: 0 6px 16px rgba(0,0,0,.28) !important; cursor: grabbing !important; z-index: 20; transition: none !important; filter: brightness(1.08); }
+/* Poignées de redimensionnement */
+.bar-hdl {
+  position: absolute; top: 0; bottom: 0; width: 8px;
+  cursor: ew-resize; z-index: 2;
+  background: rgba(0,0,0,.22); opacity: 0; transition: opacity .12s;
+}
+.gantt-bar:hover .bar-hdl { opacity: 1; }
+.bar-hdl-l { left: 0; border-radius: 5px 0 0 5px; }
+.bar-hdl-r { right: 0; border-radius: 0 5px 5px 0; }
+.bar-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: 1; pointer-events: none; }
 .gantt-bar.s-ALL { background: var(--all); }
 .gantt-bar.s-CLO { background: var(--clo); color: #1a171b; }
 .gantt-bar.s-JAR { background: var(--jar); }
@@ -687,7 +698,9 @@ const STATE = {
   planning: [],
   users: [],
   planningMode: 'week',     // 'day' | 'week'
-  planningOffset: 0         // décalage en semaines (0 = semaine courante)
+  planningOffset: 0,        // décalage en semaines (0 = semaine courante)
+  planningStart: null,      // Date lundi de la vue courante (pour drag)
+  planningUnits: 0          // nb de colonnes courantes (pour drag)
 };
 
 const SOC_COLORS = { ALL: '#cb282b', CLO: '#f1cb00', JAR: '#90c315' };
@@ -1153,6 +1166,8 @@ function renderPlanning() {
   const nbDays  = mode === 'day' ? 4 * 7 : PLANNING_WEEKS * 7;
   const units   = mode === 'day' ? nbDays : PLANNING_WEEKS;
   const endDate = new Date(startMonday); endDate.setDate(endDate.getDate() + nbDays - 1);
+  STATE.planningStart = new Date(startMonday); // référence pour le drag
+  STATE.planningUnits = units;
 
   // Toolbar état
   document.getElementById('pmDay').classList.toggle('active', mode === 'day');
@@ -1239,7 +1254,11 @@ function renderPlanning() {
     return '<div class="gantt-bar ' + cls +
       '" style="left:' + left + '%;width:' + width + '%"' +
       ' data-act="edit-pl" data-id="' + esc(p.id) + '"' +
-      ' title="' + esc(title) + '">' + esc(p.tache || '—') + '</div>';
+      ' title="' + esc(title) + '">' +
+      '<div class="bar-hdl bar-hdl-l"></div>' +
+      '<span class="bar-text">' + esc(p.tache || '—') + '</span>' +
+      '<div class="bar-hdl bar-hdl-r"></div>' +
+      '</div>';
   }
 
   let rowsHtml = '';
@@ -1282,12 +1301,148 @@ document.getElementById('pmPrev').addEventListener('click', function() { STATE.p
 document.getElementById('pmNext').addEventListener('click', function() { STATE.planningOffset++; renderPlanning(); });
 document.getElementById('pmToday').addEventListener('click', function() { STATE.planningOffset = 0; renderPlanning(); });
 
-// Clic sur une barre → édition
+// Clic sur une barre → édition (ignoré si on vient de glisser)
+let _wasDragged = false;
 document.getElementById('ganttBody').addEventListener('click', function(e) {
+  if (_wasDragged) { _wasDragged = false; return; }
+  if (e.target.classList.contains('bar-hdl')) return;
   const b = e.target.closest('[data-act="edit-pl"]');
   if (!b) return;
   openPlanningModal(b.dataset.id);
 });
+
+// ─── Drag & resize des barres Gantt ─────────────────────────────────────────
+
+let _ganttDrag = null;
+
+/* Convertit un index d'unité (jour ou semaine) en date ISO yyyy-mm-dd */
+function _ganttDateStr(u, isEnd) {
+  const d = new Date(STATE.planningStart);
+  if (STATE.planningMode === 'day') {
+    d.setDate(d.getDate() + u);
+  } else {
+    // mode semaine : début = lundi, fin = dimanche
+    d.setDate(d.getDate() + u * 7 + (isEnd ? 6 : 0));
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+/* mousedown sur le ganttBody */
+document.querySelector('.gantt-wrap').addEventListener('mousedown', function(e) {
+  const bar = e.target.closest('.gantt-bar');
+  if (!bar || !STATE.planningStart) return;
+
+  const id = bar.dataset.id;
+  const p  = (STATE.planning || []).find(function(x) { return x.id === id; });
+  if (!p) return;
+
+  // Type de drag selon la cible
+  let type = 'move';
+  if (e.target.classList.contains('bar-hdl-l')) type = 'resize-l';
+  else if (e.target.classList.contains('bar-hdl-r')) type = 'resize-r';
+
+  const mode  = STATE.planningMode;
+  const units = STATE.planningUnits;
+  const track = bar.closest('.gantt-track');
+  const tRect = track.getBoundingClientRect();
+
+  // Positions courantes en unités
+  const debDate = new Date(p.dateDebut); debDate.setHours(0, 0, 0, 0);
+  const finDate = new Date(p.dateFin || p.dateDebut); finDate.setHours(0, 0, 0, 0);
+  let deb0, fin0;
+  if (mode === 'day') {
+    deb0 = diffDays(STATE.planningStart, debDate);
+    fin0 = diffDays(STATE.planningStart, finDate);
+  } else {
+    deb0 = Math.max(0, Math.floor(diffDays(STATE.planningStart, debDate) / 7));
+    fin0 = Math.max(deb0, Math.floor(diffDays(STATE.planningStart, finDate) / 7));
+  }
+
+  _ganttDrag = {
+    type, id,
+    deb0, fin0,
+    bar, track,
+    trackLeft: tRect.left,
+    trackWidth: tRect.width,
+    units,
+    startX: e.clientX,
+    curDeb: deb0,
+    curFin: fin0,
+    didMove: false
+  };
+
+  bar.classList.add('dragging');
+  e.preventDefault(); // empêche la sélection de texte
+});
+
+/* mousemove global → mise à jour visuelle en temps réel */
+document.addEventListener('mousemove', function(e) {
+  if (!_ganttDrag) return;
+  const { type, deb0, fin0, bar, trackLeft, trackWidth, units, startX } = _ganttDrag;
+
+  if (Math.abs(e.clientX - startX) > 3) _ganttDrag.didMove = true;
+  if (!_ganttDrag.didMove) return;
+
+  // Position souris → index unité (clamped 0…units-1)
+  const fraction = (e.clientX - trackLeft) / trackWidth;
+  const unitI    = Math.max(0, Math.min(units - 1, Math.round(fraction * units)));
+
+  let newDeb, newFin;
+  if (type === 'move') {
+    const dur      = fin0 - deb0;
+    const deltaU   = Math.round((e.clientX - startX) / trackWidth * units);
+    newDeb = Math.max(0, deb0 + deltaU);
+    newFin = newDeb + dur;
+    if (newFin >= units) { newFin = units - 1; newDeb = Math.max(0, newFin - dur); }
+  } else if (type === 'resize-l') {
+    newDeb = Math.min(fin0, unitI);
+    newFin = fin0;
+  } else {
+    newDeb = deb0;
+    newFin = Math.max(deb0, unitI);
+  }
+
+  _ganttDrag.curDeb = newDeb;
+  _ganttDrag.curFin = newFin;
+
+  // Feedback visuel immédiat
+  bar.style.left  = (newDeb / units * 100).toFixed(3) + '%';
+  bar.style.width = ((newFin - newDeb + 1) / units * 100).toFixed(3) + '%';
+});
+
+/* mouseup global → sauvegarde ou ouverture modale */
+document.addEventListener('mouseup', async function(e) {
+  if (!_ganttDrag) return;
+  const { bar, curDeb, curFin, deb0, fin0, id, didMove, type } = _ganttDrag;
+  _ganttDrag = null;
+  bar.classList.remove('dragging');
+
+  if (!didMove) {
+    // Simple clic : ouvre le modal seulement pour la barre (pas les poignées)
+    if (type !== 'move') return; // clic sur poignée sans bouger → rien
+    return; // le gestionnaire 'click' existant prend le relais
+  }
+
+  _wasDragged = true; // inhibe le 'click' qui suit mouseup
+
+  if (curDeb === deb0 && curFin === fin0) return; // pas de changement réel
+
+  // Sauvegarde
+  const p = (STATE.planning || []).find(function(x) { return x.id === id; });
+  if (!p) return;
+  p.dateDebut = _ganttDateStr(curDeb, false);
+  p.dateFin   = _ganttDateStr(curFin, true);
+  try {
+    await API.savePlanning(p);
+    STATE.planning = await API.getPlanning();
+    renderPlanning();
+  } catch (err) {
+    alert('Erreur sauvegarde : ' + err.message);
+    renderPlanning(); // restaure
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function openPlanningModal(id) {
   const p = id ? STATE.planning.find(function(x) { return x.id === id; }) : null;
