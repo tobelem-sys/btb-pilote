@@ -1224,10 +1224,16 @@ function nearestWorkday(u, dir) {
 
 function renderPlanning() {
   const mode = STATE.planningMode;
-  const startMonday = mondayOf(new Date());
+  // Mode Jour : départ = aujourd'hui ; Mode Semaine : départ = lundi courant
+  let startMonday;
+  if (mode === 'day') {
+    startMonday = new Date(); startMonday.setHours(0, 0, 0, 0);
+  } else {
+    startMonday = mondayOf(new Date());
+  }
   startMonday.setDate(startMonday.getDate() + STATE.planningOffset * 7);
 
-  const nbDays  = mode === 'day' ? 4 * 7 : PLANNING_WEEKS * 7;
+  const nbDays  = PLANNING_WEEKS * 7;          // 8 semaines dans les deux modes
   const units   = mode === 'day' ? nbDays : PLANNING_WEEKS;
   const endDate = new Date(startMonday); endDate.setDate(endDate.getDate() + nbDays - 1);
   STATE.planningStart = new Date(startMonday);
@@ -1239,7 +1245,7 @@ function renderPlanning() {
   document.getElementById('pmWeek').classList.toggle('active', mode === 'week');
   document.getElementById('planningPeriode').textContent =
     'Du ' + fmtDate(startMonday) + ' au ' + fmtDate(endDate) +
-    ' · ' + (mode === 'day' ? 4 : PLANNING_WEEKS) + ' semaines';
+    ' · ' + PLANNING_WEEKS + ' semaines';
 
   // Header + calcul des overlays weekend
   const today = new Date(); today.setHours(0,0,0,0);
