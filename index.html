@@ -248,6 +248,8 @@ a { color: var(--primary); }
   background: rgba(0,0,0,.06); pointer-events: none; z-index: 0;
 }
 .gantt-header-row .gantt-cell.weekend { background: #ededf0; color: #b8b8c0; }
+.gantt-header-row .gantt-cell.holiday { background: #fde8cc; color: #b06000; font-weight: 700; }
+.gantt-holiday-band { background: rgba(255,140,0,.13) !important; }
 /* Sous-lignes par enseigne */
 .gantt-row-group { display: flex; min-width: 760px; border-bottom: 3px solid #c8cfd9; }
 .gantt-row-group:nth-child(even) .gantt-client-group,
@@ -1158,6 +1160,68 @@ function diffDays(a, b) {
   return Math.floor((b - a) / 86400000);
 }
 
+// ─── Jours fériés France ────────────────────────────────────────────────────
+
+let HOLIDAYS = new Set(); // YYYY-MM-DD des jours fériés de la vue courante
+
+/* Algorithme de Butcher : date de Pâques pour une année donnée */
+function easterDate(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100;
+  const d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day   = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(y, month - 1, day);
+}
+
+/* Construit le Set des jours fériés pour toutes les années dans la plage */
+function buildHolidays(startDate, endDate) {
+  const years = new Set();
+  const cur = new Date(startDate);
+  while (cur <= endDate) { years.add(cur.getFullYear()); cur.setDate(cur.getDate() + 1); }
+  const h = new Set();
+  function add(d) { h.add(localDateStr(d)); }
+  years.forEach(function(y) {
+    const e = easterDate(y);
+    // Fériés fixes
+    add(new Date(y, 0, 1));  // 1 jan
+    add(new Date(y, 4, 1));  // 1 mai
+    add(new Date(y, 4, 8));  // 8 mai
+    add(new Date(y, 6, 14)); // 14 jul
+    add(new Date(y, 7, 15)); // 15 aou
+    add(new Date(y, 10, 1)); // 1 nov
+    add(new Date(y, 10, 11));// 11 nov
+    add(new Date(y, 11, 25));// 25 dec
+    // Fériés mobiles (base Pâques)
+    [1, 39, 49, 50].forEach(function(offset) {
+      const hd = new Date(e); hd.setDate(hd.getDate() + offset); add(hd);
+    }); // Lundi Pâques / Ascension / Pentecôte / Lundi Pentecôte
+  });
+  return h;
+}
+
+/* Vrai si l'unité (en mode jour) est un WE ou férié */
+function isDayBlocked(unitIndex) {
+  const d = new Date(STATE.planningStart);
+  d.setDate(d.getDate() + unitIndex);
+  const dw = d.getDay();
+  return dw === 0 || dw === 6 || HOLIDAYS.has(localDateStr(d));
+}
+
+/* Cherche le jour ouvrable le plus proche (dir = +1 droite, -1 gauche) */
+function nearestWorkday(u, dir) {
+  const lim = dir > 0 ? STATE.planningUnits : -1;
+  while (u !== lim && isDayBlocked(u)) u += dir;
+  return u;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function renderPlanning() {
   const mode = STATE.planningMode;
   const startMonday = mondayOf(new Date());
@@ -1166,8 +1230,9 @@ function renderPlanning() {
   const nbDays  = mode === 'day' ? 4 * 7 : PLANNING_WEEKS * 7;
   const units   = mode === 'day' ? nbDays : PLANNING_WEEKS;
   const endDate = new Date(startMonday); endDate.setDate(endDate.getDate() + nbDays - 1);
-  STATE.planningStart = new Date(startMonday); // référence pour le drag
+  STATE.planningStart = new Date(startMonday);
   STATE.planningUnits = units;
+  if (mode === 'day') HOLIDAYS = buildHolidays(startMonday, endDate); else HOLIDAYS = new Set();
 
   // Toolbar état
   document.getElementById('pmDay').classList.toggle('active', mode === 'day');
@@ -1187,18 +1252,26 @@ function renderPlanning() {
       const dw = d.getDay();
       const isMon    = dw === 1;
       const isToday  = d.getTime() === today.getTime();
-      const isWe     = dw === 0 || dw === 6;
+      const isWe      = dw === 0 || dw === 6;
+      const isHoliday = !isWe && HOLIDAYS.has(localDateStr(d));
       header += '<div class="gantt-cell' +
         (isMon && i > 0 ? ' week-start' : '') +
-        (isToday ? ' today' : '') +
-        (isWe    ? ' weekend' : '') + '">' +
+        (isToday   ? ' today'   : '') +
+        (isWe      ? ' weekend' : '') +
+        (isHoliday ? ' holiday' : '') + '">' +
         d.getDate() + '/' + (d.getMonth() + 1) + '</div>';
-      // Début de weekend = samedi → bande de 2 jours
+      // Samedi → bande de 2 jours (WE)
       if (dw === 6) {
         const span  = Math.min(2, nbDays - i);
         const left  = (i / nbDays * 100).toFixed(3);
         const width = (span / nbDays * 100).toFixed(3);
         weekendOverlay += '<div class="gantt-we" style="left:' + left + '%;width:' + width + '%"></div>';
+      }
+      // Férié (hors WE) → bande individuelle
+      if (isHoliday) {
+        const left  = (i / nbDays * 100).toFixed(3);
+        const width = (1  / nbDays * 100).toFixed(3);
+        weekendOverlay += '<div class="gantt-we gantt-holiday-band" style="left:' + left + '%;width:' + width + '%"></div>';
       }
     }
   } else {
@@ -1315,16 +1388,22 @@ document.getElementById('ganttBody').addEventListener('click', function(e) {
 
 let _ganttDrag = null;
 
-/* Convertit un index d'unité (jour ou semaine) en date ISO yyyy-mm-dd */
+/* Formate une Date en YYYY-MM-DD LOCAL (évite le décalage UTC) */
+function localDateStr(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+/* Convertit un index d'unité (jour ou semaine) en date locale yyyy-mm-dd */
 function _ganttDateStr(u, isEnd) {
   const d = new Date(STATE.planningStart);
   if (STATE.planningMode === 'day') {
     d.setDate(d.getDate() + u);
   } else {
-    // mode semaine : début = lundi, fin = dimanche
     d.setDate(d.getDate() + u * 7 + (isEnd ? 6 : 0));
   }
-  return d.toISOString().slice(0, 10);
+  return localDateStr(d); // local, pas UTC
 }
 
 /* mousedown sur le ganttBody (mode Jour uniquement) */
@@ -1392,11 +1471,14 @@ document.addEventListener('mousemove', function(e) {
     newDeb = deb0 + deltaU;
     newFin = fin0 + deltaU;
   } else if (type === 'resize-l') {
-    newDeb = Math.min(fin0, deb0 + deltaU); // ne peut pas dépasser fin
+    // Snap vers le jour ouvrable le plus proche (pas de WE/férié)
+    const raw = Math.min(fin0, deb0 + deltaU);
+    newDeb = nearestWorkday(raw, deltaU <= 0 ? 1 : -1);
     newFin = fin0;
   } else { // resize-r
+    const raw = Math.max(deb0, fin0 + deltaU);
+    newFin = nearestWorkday(raw, deltaU >= 0 ? -1 : 1);
     newDeb = deb0;
-    newFin = Math.max(deb0, fin0 + deltaU); // ne peut pas être < début
   }
 
   _ganttDrag.curDeb = newDeb; // positions VRAIES (peuvent sortir de la vue)
