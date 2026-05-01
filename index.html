@@ -157,6 +157,16 @@ a { color: var(--primary); }
 .soc-checks label.sel-JAR { border-color: var(--jar); background: #eaf6d0; }
 .soc-checks input { accent-color: var(--primary); margin: 0; }
 
+/* ─── Commercial(aux) checkboxes ─── */
+.comm-checks { display: flex; gap: 6px; flex-wrap: wrap; }
+.comm-checks label {
+  display: flex; align-items: center; gap: 5px; padding: 5px 10px;
+  border: 1.5px solid var(--border); border-radius: 7px; cursor: pointer;
+  font-size: .82rem; font-weight: 500; transition: all .15s; user-select: none;
+}
+.comm-checks label.sel { border-color: var(--primary); background: #f0f0f8; font-weight: 700; }
+.comm-checks input { accent-color: var(--primary); margin: 0; }
+
 /* ─── Montants par société (prospect) ─── */
 .pr-montants-block { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
 .pr-montant-row { display: flex; align-items: center; gap: 8px; }
@@ -578,13 +588,11 @@ a { color: var(--primary); }
         </select>
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Commercial</label>
-        <select id="prCommercial"></select>
-      </div>
-      <div class="form-group"><label>Date RDV</label><input type="date" id="prDateRdv"></div>
+    <div class="form-group">
+      <label>Commercial(aux)</label>
+      <div class="comm-checks" id="prCommercialChecks"></div>
     </div>
+    <div class="form-group"><label>Date RDV</label><input type="date" id="prDateRdv"></div>
     <div class="form-group"><label>Montants estimés (€)</label><div id="prMontantsBlock"></div></div>
     <div class="form-group"><label>Notes</label><textarea id="prNotes"></textarea></div>
     <div class="modal-footer">
@@ -778,12 +786,11 @@ function badges() {
 }
 
 function populateCommercialSelects() {
-  var COMMERCIAUX = ['Maxime', 'Lauren', 'Pierre Babad', 'Pierre Bignon', 'Thomas'];
   var opts = ['<option value=""></option>']
     .concat(COMMERCIAUX.map(function(name) {
       return '<option value="' + esc(name) + '">' + esc(name) + '</option>';
     })).join('');
-  ['chCommercial','prCommercial','suCommercial'].forEach(function(id) {
+  ['chCommercial','suCommercial'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.innerHTML = opts;
   });
@@ -961,7 +968,7 @@ function renderProspects() {
     return '<li class="item-row">' +
       '<div class="item-main">' +
         '<div class="item-title">' + esc(nomComplet || '—') + ' ' + chips + '</div>' +
-        '<div class="item-sub">' + esc(p.ref || '') + ' · ' + esc(p.statut || '') + ' · ' + esc(p.commercial || '') + ' · ' + fmtEuro(p.montantEstime) + ' est.' +
+        '<div class="item-sub">' + esc(p.ref || '') + ' · ' + esc(p.statut || '') + ' · ' + esc(Array.isArray(p.commercial) ? p.commercial.join(', ') : (p.commercial || '')) + ' · ' + fmtEuro(p.montantEstime) + ' est.' +
         (p.ville ? ' · ' + esc(p.ville) : '') + '</div>' +
       '</div>' +
       '<div class="item-actions">' +
@@ -1060,7 +1067,7 @@ function openProspectModal(id) {
   document.getElementById('prVille').value       = p ? p.ville || '' : '';
   document.getElementById('prStatut').value      = p ? p.statut || 'Nouveau' : 'Nouveau';
   document.getElementById('prSource').value      = p ? p.source || '' : '';
-  document.getElementById('prCommercial').value  = p ? p.commercial || '' : '';
+  renderCommercialChecks('prCommercialChecks', p ? (p.commercial || []) : []);
   document.getElementById('prDateRdv').value     = p ? dstr(p.dateRdv) : '';
   document.getElementById('prNotes').value       = p ? p.notes || '' : '';
   renderSocChecks('socChecksPr', p ? (p.societes || []) : []);
@@ -1095,7 +1102,7 @@ async function saveProspectForm(e) {
     ville:         document.getElementById('prVille').value.trim(),
     statut:        document.getElementById('prStatut').value,
     source:        document.getElementById('prSource').value,
-    commercial:    document.getElementById('prCommercial').value,
+    commercial:    collectCommercialChecks('prCommercialChecks'),
     dateRdv:       document.getElementById('prDateRdv').value,
     montants:      montants,
     montantEstime: montantTotal,
@@ -1651,6 +1658,30 @@ function renderSocChecks(containerId, selected) {
 }
 function collectSocChecks(containerId) {
   return Array.from(document.getElementById(containerId).querySelectorAll('input[type=checkbox]:checked')).map(function(cb){ return cb.value; });
+}
+
+var COMMERCIAUX = ['Maxime', 'Lauren', 'Pierre Babad', 'Pierre Bignon', 'Thomas'];
+function renderCommercialChecks(containerId, selected) {
+  // Accepte string (ancien format) ou tableau
+  var selArr = Array.isArray(selected) ? selected : (selected ? [selected] : []);
+  var html = COMMERCIAUX.map(function(name) {
+    var on = selArr.indexOf(name) > -1;
+    return '<label class="' + (on ? 'sel' : '') + '">' +
+      '<input type="checkbox" value="' + esc(name) + '"' + (on ? ' checked' : '') + '>' +
+      esc(name) + '</label>';
+  }).join('');
+  var el = document.getElementById(containerId);
+  el.innerHTML = html;
+  el.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var label = cb.closest('label');
+      if (cb.checked) label.classList.add('sel');
+      else label.classList.remove('sel');
+    });
+  });
+}
+function collectCommercialChecks(containerId) {
+  return Array.from(document.getElementById(containerId).querySelectorAll('input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
 }
 
 // ═══════════════════════════════════════════════════════════
