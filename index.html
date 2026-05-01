@@ -211,10 +211,13 @@ a { color: var(--primary); }
 }
 .gantt-header-row .gantt-client { background: #f9fafb; font-weight: 700; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
 .gantt-track { position: relative; flex: 1; min-height: 40px; background-image: linear-gradient(to right, #eef0f3 1px, transparent 1px); background-size: calc(100% / var(--cols, 8)) 100%; min-width: calc(var(--cols, 8) * 24px); }
-.gantt-header-row .gantt-track { display: grid; min-height: auto; background-image: none; grid-template-columns: repeat(var(--cols, 8), minmax(24px, 1fr)); min-width: calc(var(--cols, 8) * 24px); }
+.gantt-header-row .gantt-track { display: block; position: relative; min-height: 28px; background-image: none; min-width: calc(var(--cols, 8) * 24px); }
 .gantt-header-row .gantt-cell {
-  text-align: center; padding: 7px 2px; border-right: 1px solid #eef0f3;
+  position: absolute; top: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 2px; border-right: 1px solid #eef0f3;
   font-size: .72rem; color: var(--muted); font-weight: 600;
+  overflow: hidden;
 }
 .gantt-header-row .gantt-cell.today { background: #fef3c7; color: var(--text); }
 .gantt-header-row .gantt-cell.week-start { border-left: 2px solid var(--border); }
@@ -458,10 +461,6 @@ a { color: var(--primary); }
         <button class="btn-primary" onclick="openPlanningModal()">+ Nouvelle intervention</button>
       </div>
       <div class="gantt-toolbar">
-        <div class="mode-switch">
-          <button id="pmDay">Jour</button>
-          <button id="pmWeek" class="active">Semaine</button>
-        </div>
         <button class="nav-btn" id="pmPrev">← Précédent</button>
         <button class="nav-btn" id="pmToday">Aujourd'hui</button>
         <button class="nav-btn" id="pmNext">Suivant →</button>
@@ -699,7 +698,7 @@ const STATE = {
   suivi: [],
   planning: [],
   users: [],
-  planningMode: 'week',     // 'day' | 'week'
+  planningMode: 'day',      // always day mode
   planningOffset: 0,        // décalage en semaines (0 = semaine courante)
   planningStart: null,      // Date lundi de la vue courante (pour drag)
   planningUnits: 0          // nb de colonnes courantes (pour drag)
@@ -1223,26 +1222,17 @@ function nearestWorkday(u, dir) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function renderPlanning() {
-  const mode = STATE.planningMode;
-  // Mode Jour : départ = aujourd'hui ; Mode Semaine : départ = lundi courant
-  let startMonday;
-  if (mode === 'day') {
-    startMonday = new Date(); startMonday.setHours(0, 0, 0, 0);
-  } else {
-    startMonday = mondayOf(new Date());
-  }
+  // Toujours mode Jour : départ = aujourd'hui
+  const startMonday = new Date(); startMonday.setHours(0, 0, 0, 0);
   startMonday.setDate(startMonday.getDate() + STATE.planningOffset * 7);
 
-  const nbDays  = PLANNING_WEEKS * 7;          // 8 semaines dans les deux modes
-  const units   = mode === 'day' ? nbDays : PLANNING_WEEKS;
+  const nbDays  = PLANNING_WEEKS * 7;          // 8 semaines = 56 jours
+  const units   = nbDays;
   const endDate = new Date(startMonday); endDate.setDate(endDate.getDate() + nbDays - 1);
   STATE.planningStart = new Date(startMonday);
   STATE.planningUnits = units;
-  if (mode === 'day') HOLIDAYS = buildHolidays(startMonday, endDate); else HOLIDAYS = new Set();
+  HOLIDAYS = buildHolidays(startMonday, endDate);
 
-  // Toolbar état
-  document.getElementById('pmDay').classList.toggle('active', mode === 'day');
-  document.getElementById('pmWeek').classList.toggle('active', mode === 'week');
   document.getElementById('planningPeriode').textContent =
     'Du ' + fmtDate(startMonday) + ' au ' + fmtDate(endDate) +
     ' · ' + PLANNING_WEEKS + ' semaines';
@@ -1252,46 +1242,40 @@ function renderPlanning() {
   let header = '';
   let weekendOverlay = '';
 
-  if (mode === 'day') {
-    for (let i = 0; i < nbDays; i++) {
-      const d = new Date(startMonday); d.setDate(d.getDate() + i);
-      const dw = d.getDay();
-      const isMon    = dw === 1;
-      const isToday  = d.getTime() === today.getTime();
-      const isWe      = dw === 0 || dw === 6;
-      const isHoliday = !isWe && HOLIDAYS.has(localDateStr(d));
-      header += '<div class="gantt-cell' +
-        (isMon && i > 0 ? ' week-start' : '') +
-        (isToday   ? ' today'   : '') +
-        (isWe      ? ' weekend' : '') +
-        (isHoliday ? ' holiday' : '') + '">' +
-        d.getDate() + '/' + (d.getMonth() + 1) + '</div>';
-      // Samedi → bande de 2 jours (WE)
-      if (dw === 6) {
-        const span  = Math.min(2, nbDays - i);
-        const left  = (i / nbDays * 100).toFixed(3);
-        const width = (span / nbDays * 100).toFixed(3);
-        weekendOverlay += '<div class="gantt-we" style="left:' + left + '%;width:' + width + '%"></div>';
-      }
-      // Férié (hors WE) → bande individuelle
-      if (isHoliday) {
-        const left  = (i / nbDays * 100).toFixed(3);
-        const width = (1  / nbDays * 100).toFixed(3);
-        weekendOverlay += '<div class="gantt-we gantt-holiday-band" style="left:' + left + '%;width:' + width + '%"></div>';
-      }
+  for (let i = 0; i < nbDays; i++) {
+    const d = new Date(startMonday); d.setDate(d.getDate() + i);
+    const dw = d.getDay();
+    const isMon    = dw === 1;
+    const isToday  = d.getTime() === today.getTime();
+    const isWe      = dw === 0 || dw === 6;
+    const isHoliday = !isWe && HOLIDAYS.has(localDateStr(d));
+    const cellLeft  = (i / units * 100).toFixed(3);
+    const cellWidth = (1 / units * 100).toFixed(3);
+    header += '<div class="gantt-cell' +
+      (isMon && i > 0 ? ' week-start' : '') +
+      (isToday   ? ' today'   : '') +
+      (isWe      ? ' weekend' : '') +
+      (isHoliday ? ' holiday' : '') +
+      '" style="left:' + cellLeft + '%;width:' + cellWidth + '%">' +
+      d.getDate() + '/' + (d.getMonth() + 1) + '</div>';
+    // Samedi → bande de 2 jours (WE)
+    if (dw === 6) {
+      const span  = Math.min(2, nbDays - i);
+      const left  = (i / units * 100).toFixed(3);
+      const width = (span / units * 100).toFixed(3);
+      weekendOverlay += '<div class="gantt-we" style="left:' + left + '%;width:' + width + '%"></div>';
     }
-  } else {
-    for (let i = 0; i < PLANNING_WEEKS; i++) {
-      const d = new Date(startMonday); d.setDate(d.getDate() + i * 7);
-      const inWeek = today >= d && today < new Date(d.getTime() + 7 * 86400000);
-      header += '<div class="gantt-cell' + (inWeek ? ' today' : '') + '">S' + isoWeekNum(d) + '</div>';
+    // Férié (hors WE) → bande individuelle
+    if (isHoliday) {
+      const left  = (i / units * 100).toFixed(3);
+      const width = (1  / units * 100).toFixed(3);
+      weekendOverlay += '<div class="gantt-we gantt-holiday-band" style="left:' + left + '%;width:' + width + '%"></div>';
     }
   }
 
-  const gridCols = 'repeat(' + units + ', 1fr)';
   document.getElementById('ganttHeader').innerHTML =
     '<div class="gantt-client">Client</div>' +
-    '<div class="gantt-track" style="--cols:' + units + ';grid-template-columns:' + gridCols + '">' + header + '</div>';
+    '<div class="gantt-track" style="--cols:' + units + '">' + header + '</div>';
 
   // Regroupement par client puis par enseigne
   const byClient = {};
@@ -1300,7 +1284,13 @@ function renderPlanning() {
     if (!k) return;
     (byClient[k] = byClient[k] || []).push(p);
   });
-  const clientNames = Object.keys(byClient).sort(function(a, b) { return a.localeCompare(b, 'fr'); });
+  const clientNames = Object.keys(byClient).sort(function(a, b) {
+    var minDate = function(name) {
+      var dates = byClient[name].filter(function(p) { return p.dateDebut; }).map(function(p) { return new Date(p.dateDebut).getTime(); });
+      return dates.length ? Math.min.apply(null, dates) : Infinity;
+    };
+    return minDate(a) - minDate(b);
+  });
 
   // Helper : barre HTML pour une intervention
   function barHtml(p) {
@@ -1308,14 +1298,8 @@ function renderPlanning() {
     const deb = new Date(p.dateDebut);
     const fin = new Date(p.dateFin || p.dateDebut);
     deb.setHours(0,0,0,0); fin.setHours(0,0,0,0);
-    let startUnit, endUnit;
-    if (mode === 'day') {
-      startUnit = diffDays(startMonday, deb);
-      endUnit   = diffDays(startMonday, fin);
-    } else {
-      startUnit = Math.floor(diffDays(startMonday, deb) / 7);
-      endUnit   = Math.floor(diffDays(startMonday, fin) / 7);
-    }
+    const startUnit = diffDays(startMonday, deb);
+    const endUnit   = diffDays(startMonday, fin);
     if (endUnit < 0 || startUnit >= units) return '';
     const s = Math.max(0, startUnit);
     const e = Math.min(units - 1, endUnit);
@@ -1374,8 +1358,6 @@ function renderPlanning() {
 }
 
 // Toolbar planning
-document.getElementById('pmDay').addEventListener('click', function() { STATE.planningMode = 'day';  renderPlanning(); });
-document.getElementById('pmWeek').addEventListener('click', function() { STATE.planningMode = 'week'; renderPlanning(); });
 document.getElementById('pmPrev').addEventListener('click', function() { STATE.planningOffset--; renderPlanning(); });
 document.getElementById('pmNext').addEventListener('click', function() { STATE.planningOffset++; renderPlanning(); });
 document.getElementById('pmToday').addEventListener('click', function() { STATE.planningOffset = 0; renderPlanning(); });
@@ -1401,20 +1383,15 @@ function localDateStr(d) {
     String(d.getDate()).padStart(2, '0');
 }
 
-/* Convertit un index d'unité (jour ou semaine) en date locale yyyy-mm-dd */
-function _ganttDateStr(u, isEnd) {
+/* Convertit un index de jour en date locale yyyy-mm-dd */
+function _ganttDateStr(u) {
   const d = new Date(STATE.planningStart);
-  if (STATE.planningMode === 'day') {
-    d.setDate(d.getDate() + u);
-  } else {
-    d.setDate(d.getDate() + u * 7 + (isEnd ? 6 : 0));
-  }
+  d.setDate(d.getDate() + u);
   return localDateStr(d); // local, pas UTC
 }
 
-/* mousedown sur le ganttBody (mode Jour uniquement) */
+/* mousedown sur le ganttBody */
 document.querySelector('.gantt-wrap').addEventListener('mousedown', function(e) {
-  if (STATE.planningMode !== 'day') return; // drag désactivé en mode Semaine
   const bar = e.target.closest('.gantt-bar');
   if (!bar || !STATE.planningStart) return;
 
@@ -1427,22 +1404,15 @@ document.querySelector('.gantt-wrap').addEventListener('mousedown', function(e) 
   if (e.target.classList.contains('bar-hdl-l')) type = 'resize-l';
   else if (e.target.classList.contains('bar-hdl-r')) type = 'resize-r';
 
-  const mode  = STATE.planningMode;
   const units = STATE.planningUnits;
   const track = bar.closest('.gantt-track');
   const tRect = track.getBoundingClientRect();
 
-  // Positions courantes en unités
+  // Positions courantes en jours
   const debDate = new Date(p.dateDebut); debDate.setHours(0, 0, 0, 0);
   const finDate = new Date(p.dateFin || p.dateDebut); finDate.setHours(0, 0, 0, 0);
-  let deb0, fin0;
-  if (mode === 'day') {
-    deb0 = diffDays(STATE.planningStart, debDate);
-    fin0 = diffDays(STATE.planningStart, finDate);
-  } else {
-    deb0 = Math.floor(diffDays(STATE.planningStart, debDate) / 7);
-    fin0 = Math.max(deb0, Math.floor(diffDays(STATE.planningStart, finDate) / 7));
-  }
+  const deb0 = diffDays(STATE.planningStart, debDate);
+  const fin0 = diffDays(STATE.planningStart, finDate);
 
   _ganttDrag = {
     type, id,
@@ -1517,8 +1487,8 @@ document.addEventListener('mouseup', async function(e) {
   // Sauvegarde
   const p = (STATE.planning || []).find(function(x) { return x.id === id; });
   if (!p) return;
-  p.dateDebut = _ganttDateStr(curDeb, false);
-  p.dateFin   = _ganttDateStr(curFin, true);
+  p.dateDebut = _ganttDateStr(curDeb);
+  p.dateFin   = _ganttDateStr(curFin);
   try {
     await API.savePlanning(p);
     STATE.planning = await API.getPlanning();
