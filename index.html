@@ -157,6 +157,17 @@ a { color: var(--primary); }
 .soc-checks label.sel-JAR { border-color: var(--jar); background: #eaf6d0; }
 .soc-checks input { accent-color: var(--primary); margin: 0; }
 
+/* ─── Montants par société (prospect) ─── */
+.pr-montants-block { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+.pr-montant-row { display: flex; align-items: center; gap: 8px; }
+.pr-montant-label { flex: 0 0 76px; font-size: .79rem; font-weight: 700; padding: 3px 7px; border-radius: 5px; text-align: center; }
+.pr-montant-label.l-ALL { color: var(--all); background: #fbe5e6; }
+.pr-montant-label.l-CLO { color: #a07c00; background: #fdf4cc; }
+.pr-montant-label.l-JAR { color: #5a8000; background: #eaf6d0; }
+.pr-montant-input { flex: 1; }
+.pr-montant-euro { font-size: .82rem; color: var(--muted); }
+.pr-montant-total { display: flex; align-items: center; justify-content: space-between; padding-top: 7px; border-top: 2px solid var(--border); font-size: .90rem; font-weight: 700; margin-top: 2px; }
+
 /* ─── Modal ─── */
 .modal-bg {
   position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
@@ -549,11 +560,7 @@ a { color: var(--primary); }
       <div class="form-group"><label>Téléphone</label><input id="prTel"></div>
       <div class="form-group"><label>Email</label><input type="email" id="prEmail"></div>
     </div>
-    <div class="form-group"><label>Adresse</label><input id="prAdresse"></div>
-    <div class="form-row">
-      <div class="form-group"><label>CP</label><input id="prCp"></div>
-      <div class="form-group"><label>Ville</label><input id="prVille"></div>
-    </div>
+    <div class="form-group"><label>Ville</label><input id="prVille"></div>
     <div class="form-row">
       <div class="form-group">
         <label>Statut</label>
@@ -578,7 +585,7 @@ a { color: var(--primary); }
       </div>
       <div class="form-group"><label>Date RDV</label><input type="date" id="prDateRdv"></div>
     </div>
-    <div class="form-group"><label>Montant estimé (€)</label><input type="number" step="0.01" id="prMontant"></div>
+    <div class="form-group"><label>Montants estimés (€)</label><div id="prMontantsBlock"></div></div>
     <div class="form-group"><label>Notes</label><textarea id="prNotes"></textarea></div>
     <div class="modal-footer">
       <button type="button" class="btn-sm" onclick="closeModal('modalProspect')">Annuler</button>
@@ -771,13 +778,13 @@ function badges() {
 }
 
 function populateCommercialSelects() {
-  const opts = ['<option value=""></option>']
-    .concat((STATE.users || []).filter(function(u){return u.actif !== false;}).map(function(u) {
-      const label = [u.prenom, u.nom].filter(Boolean).join(' ') || u.email;
-      return '<option value="' + esc(label) + '">' + esc(label) + '</option>';
+  var COMMERCIAUX = ['Maxime', 'Lauren', 'Pierre Babad', 'Pierre Bignon', 'Thomas'];
+  var opts = ['<option value=""></option>']
+    .concat(COMMERCIAUX.map(function(name) {
+      return '<option value="' + esc(name) + '">' + esc(name) + '</option>';
     })).join('');
   ['chCommercial','prCommercial','suCommercial'].forEach(function(id) {
-    const el = document.getElementById(id);
+    var el = document.getElementById(id);
     if (el) el.innerHTML = opts;
   });
 }
@@ -991,6 +998,57 @@ async function deleteProspectAsk(id) {
     renderProspects(); badges(); loadDashboard();
   } catch (e) { alert('Erreur : ' + e.message); }
 }
+/* Lecture des montants actuellement saisis (pour préservation lors du toggle société) */
+function collectPrMontants() {
+  var m = {};
+  ['ALL','CLO','JAR'].forEach(function(code) {
+    var el = document.getElementById('prMontant_' + code);
+    if (el) m[code] = parseFloat(el.value) || 0;
+  });
+  return m;
+}
+
+/* Affiche les champs montant pour les sociétés cochées + total */
+function updatePrMontantFields(montants) {
+  var checked = collectSocChecks('socChecksPr');
+  var block = document.getElementById('prMontantsBlock');
+  if (!block) return;
+  if (checked.length === 0) { block.innerHTML = '<span style="color:var(--muted);font-size:.82rem">Sélectionnez d\'abord une société.</span>'; return; }
+  var SOC_FR = { ALL: 'Allée', CLO: 'Clôture', JAR: 'Jardin' };
+  var html = '<div class="pr-montants-block">';
+  checked.forEach(function(code) {
+    var val = (montants && montants[code] != null) ? montants[code] : '';
+    html += '<div class="pr-montant-row">' +
+      '<span class="pr-montant-label l-' + code + '">' + (SOC_FR[code] || code) + '</span>' +
+      '<input class="pr-montant-input" type="number" step="0.01" min="0" id="prMontant_' + code + '" value="' + val + '" placeholder="0">' +
+      '<span class="pr-montant-euro">€</span>' +
+      '</div>';
+  });
+  html += '<div class="pr-montant-total"><span>Total</span><span id="prMontantTotalVal">—</span></div>';
+  html += '</div>';
+  block.innerHTML = html;
+  // Recalcul du total à chaque saisie
+  function recalc() {
+    var total = 0;
+    checked.forEach(function(code) {
+      var el = document.getElementById('prMontant_' + code);
+      if (el) total += parseFloat(el.value) || 0;
+    });
+    var el = document.getElementById('prMontantTotalVal');
+    if (el) el.textContent = fmtEuro(total);
+  }
+  checked.forEach(function(code) {
+    var el = document.getElementById('prMontant_' + code);
+    if (el) el.addEventListener('input', recalc);
+  });
+  recalc();
+}
+
+// Mise à jour des montants quand on coche/décoche une société
+document.getElementById('socChecksPr').addEventListener('change', function() {
+  updatePrMontantFields(collectPrMontants());
+});
+
 function openProspectModal(id) {
   const p = id ? STATE.prospects.find(function(x){return x.id === id;}) : null;
   document.getElementById('titleProspectModal').textContent = p ? 'Modifier prospect' : 'Nouveau prospect';
@@ -999,22 +1057,34 @@ function openProspectModal(id) {
   document.getElementById('prPrenom').value      = p ? p.prenom || '' : '';
   document.getElementById('prTel').value         = p ? p.telephone || '' : '';
   document.getElementById('prEmail').value       = p ? p.email || '' : '';
-  document.getElementById('prAdresse').value     = p ? p.adresse || '' : '';
-  document.getElementById('prCp').value          = p ? p.cp || '' : '';
   document.getElementById('prVille').value       = p ? p.ville || '' : '';
   document.getElementById('prStatut').value      = p ? p.statut || 'Nouveau' : 'Nouveau';
   document.getElementById('prSource').value      = p ? p.source || '' : '';
   document.getElementById('prCommercial').value  = p ? p.commercial || '' : '';
   document.getElementById('prDateRdv').value     = p ? dstr(p.dateRdv) : '';
-  document.getElementById('prMontant').value     = p ? p.montantEstime || '' : '';
   document.getElementById('prNotes').value       = p ? p.notes || '' : '';
   renderSocChecks('socChecksPr', p ? (p.societes || []) : []);
+  // Montants par société (compatibilité : si ancienne donnée montantEstime uniquement)
+  var initMontants = p ? (p.montants || {}) : {};
+  if (p && !p.montants && p.montantEstime && (p.societes || []).length > 0) {
+    initMontants[p.societes[0]] = p.montantEstime;
+  }
+  updatePrMontantFields(initMontants);
   openModal('modalProspect');
 }
 async function saveProspectForm(e) {
   e.preventDefault();
   const societes = collectSocChecks('socChecksPr');
   if (societes.length === 0) { alert('Sélectionnez au moins une société.'); return; }
+  // Collecter les montants par société
+  var montants = {};
+  var montantTotal = 0;
+  societes.forEach(function(code) {
+    var el = document.getElementById('prMontant_' + code);
+    var val = el ? (parseFloat(el.value) || 0) : 0;
+    montants[code] = val;
+    montantTotal += val;
+  });
   const d = {
     id:            document.getElementById('prId').value || undefined,
     societes:      societes,
@@ -1022,14 +1092,13 @@ async function saveProspectForm(e) {
     prenom:        document.getElementById('prPrenom').value.trim(),
     telephone:     document.getElementById('prTel').value.trim(),
     email:         document.getElementById('prEmail').value.trim(),
-    adresse:       document.getElementById('prAdresse').value.trim(),
-    cp:            document.getElementById('prCp').value.trim(),
     ville:         document.getElementById('prVille').value.trim(),
     statut:        document.getElementById('prStatut').value,
     source:        document.getElementById('prSource').value,
     commercial:    document.getElementById('prCommercial').value,
     dateRdv:       document.getElementById('prDateRdv').value,
-    montantEstime: parseFloat(document.getElementById('prMontant').value) || 0,
+    montants:      montants,
+    montantEstime: montantTotal,
     notes:         document.getElementById('prNotes').value,
     _user:         STATE.user && STATE.user.email
   };
