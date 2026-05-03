@@ -128,6 +128,42 @@ a { color: var(--primary); }
 .btn-sm { padding: 5px 10px; font-size: .78rem; border-radius: 6px; border: 1px solid var(--border); background: #fff; }
 .btn-sm:hover { background: #f3f4f6; }
 .btn-sm.danger { color: var(--red); border-color: #fecaca; }
+/* ─── Suivi commercial : vue par client ─── */
+.suivi-client-group {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 10px; overflow: hidden; box-shadow: var(--shadow);
+}
+.suivi-client-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: #f9fafb; border-bottom: 1px solid var(--border);
+}
+.suivi-client-name { font-weight: 700; font-size: .95rem; }
+.suivi-client-total { font-weight: 800; font-size: .88rem; color: var(--primary); }
+.suivi-soc-block {
+  border-left: 4px solid var(--border);
+  margin: 8px 10px 8px 14px; border-radius: 0 7px 7px 0;
+  overflow: hidden; background: #fafbfc;
+}
+.suivi-soc-block.s-ALL { border-left-color: var(--all); }
+.suivi-soc-block.s-CLO { border-left-color: var(--clo); }
+.suivi-soc-block.s-JAR { border-left-color: var(--jar); }
+.suivi-soc-hd {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-bottom: 1px solid var(--border);
+}
+.suivi-soc-commercial { font-size: .80rem; color: var(--muted); }
+.suivi-soc-total { margin-left: auto; font-weight: 700; font-size: .82rem; color: var(--text); }
+.suivi-action-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-bottom: 1px solid #f0f0f2; font-size: .83rem;
+}
+.suivi-action-row:last-child { border-bottom: 0; }
+.suivi-action-icon { flex: 0 0 18px; font-size: .9rem; }
+.suivi-action-type { flex: 1; font-weight: 600; }
+.suivi-action-date { flex: 0 0 78px; color: var(--muted); font-size: .77rem; }
+.suivi-action-amt { flex: 0 0 82px; text-align: right; font-weight: 700; }
+.suivi-action-btns { display: flex; gap: 3px; }
+
 .btn-primary {
   background: var(--primary); color: #fff; border: 0; padding: 9px 14px;
   border-radius: 7px; font-weight: 600; font-size: .88rem;
@@ -483,7 +519,7 @@ a { color: var(--primary); }
           </div>
         </div>
       </div>
-      <ul class="item-list" id="listSuivi"></ul>
+      <div id="listSuivi"></div>
     </section>
 
     <!-- Planning -->
@@ -1190,27 +1226,90 @@ const TYPE_LABELS = {
   encaissement:  { label: 'Encaissement',  icon: '💰' }
 };
 function renderSuivi() {
-  const fs = document.getElementById('filtreSocSuivi').value;
-  const ft = document.getElementById('filtreTypeSuivi').value;
-  const list = STATE.suivi
-    .filter(function(s) { return !fs || s.societe === fs; })
-    .filter(function(s) { return !ft || s.type === ft; })
-    .sort(function(a, b) { return (new Date(b.date || 0)) - (new Date(a.date || 0)); });
+  var fs = document.getElementById('filtreSocSuivi').value;
+  var ft = document.getElementById('filtreTypeSuivi').value;
 
-  const el = document.getElementById('listSuivi');
+  var list = STATE.suivi
+    .filter(function(s) { return !fs || s.societe === fs; })
+    .filter(function(s) { return !ft || s.type === ft; });
+
+  var el = document.getElementById('listSuivi');
   if (list.length === 0) { el.innerHTML = '<div class="empty">Aucune entrée</div>'; return; }
-  el.innerHTML = list.map(function(s) {
-    const t = TYPE_LABELS[s.type] || { label: s.type, icon: '·' };
-    const chip = '<span class="chip chip-' + (s.societe || '').toLowerCase() + '">' + (SOC_LABELS[s.societe] || s.societe || '?') + '</span>';
-    return '<li class="item-row">' +
-      '<div class="item-main">' +
-        '<div class="item-title">' + t.icon + ' ' + t.label + ' — ' + fmtEuro(s.montant) + ' ' + chip + '</div>' +
-        '<div class="item-sub">' + fmtDate(s.date) + (s.client ? ' · ' + esc(s.client) : '') + (s.commercial ? ' · ' + esc(s.commercial) : '') + '</div>' +
+
+  // Grouper par client puis par société
+  var byClient = {};
+  list.forEach(function(s) {
+    var k = (s.client || '—').trim();
+    if (!byClient[k]) byClient[k] = {};
+    var soc = (s.societe || '?').toUpperCase();
+    if (!byClient[k][soc]) byClient[k][soc] = [];
+    byClient[k][soc].push(s);
+  });
+
+  // Trier clients par date de dernière activité (plus récente d'abord)
+  var clients = Object.keys(byClient).sort(function(a, b) {
+    var latest = function(name) {
+      var all = [];
+      Object.keys(byClient[name]).forEach(function(c) { all = all.concat(byClient[name][c]); });
+      return Math.max.apply(null, all.map(function(s) { return new Date(s.date || 0).getTime(); }));
+    };
+    return latest(b) - latest(a);
+  });
+
+  var SOC_ORDER = ['ALL', 'CLO', 'JAR'];
+
+  el.innerHTML = clients.map(function(clientName) {
+    var socGroups = byClient[clientName];
+    var activeSocs = SOC_ORDER.filter(function(c) { return socGroups[c]; });
+
+    // Total client
+    var totalClient = 0;
+    activeSocs.forEach(function(code) {
+      socGroups[code].forEach(function(a) { totalClient += Number(a.montant) || 0; });
+    });
+
+    // Blocs par société
+    var socHtml = activeSocs.map(function(code) {
+      var actions = socGroups[code].slice().sort(function(a, b) {
+        return new Date(a.date || 0) - new Date(b.date || 0);
+      });
+      // Commercial de la dernière action
+      var commercial = '';
+      actions.forEach(function(a) { if (a.commercial) commercial = a.commercial; });
+
+      var totalSoc = actions.reduce(function(sum, a) { return sum + (Number(a.montant) || 0); }, 0);
+
+      var actionsHtml = actions.map(function(a) {
+        var t = TYPE_LABELS[a.type] || { label: a.type || '?', icon: '·' };
+        return '<div class="suivi-action-row">' +
+          '<span class="suivi-action-icon">' + t.icon + '</span>' +
+          '<span class="suivi-action-type">' + esc(t.label) + '</span>' +
+          '<span class="suivi-action-date">' + fmtDate(a.date) + '</span>' +
+          '<span class="suivi-action-amt">' + fmtEuro(a.montant) + '</span>' +
+          '<div class="suivi-action-btns">' +
+            '<button class="btn-sm" data-act="edit-su" data-id="' + esc(a.id) + '">✏</button>' +
+            '<button class="btn-sm danger" data-act="del-su" data-id="' + esc(a.id) + '">🗑</button>' +
+          '</div>' +
+          '</div>';
+      }).join('');
+
+      return '<div class="suivi-soc-block s-' + code + '">' +
+        '<div class="suivi-soc-hd">' +
+          '<span class="chip chip-' + code.toLowerCase() + '">' + (SOC_LABELS[code] || code) + '</span>' +
+          (commercial ? '<span class="suivi-soc-commercial">' + esc(commercial) + '</span>' : '') +
+          '<span class="suivi-soc-total">' + fmtEuro(totalSoc) + '</span>' +
+        '</div>' +
+        actionsHtml +
+        '</div>';
+    }).join('');
+
+    return '<div class="suivi-client-group">' +
+      '<div class="suivi-client-hd">' +
+        '<span class="suivi-client-name">' + esc(clientName) + '</span>' +
+        '<span class="suivi-client-total">' + fmtEuro(totalClient) + '</span>' +
       '</div>' +
-      '<div class="item-actions">' +
-        '<button class="btn-sm" data-act="edit-su" data-id="' + esc(s.id) + '">✏</button>' +
-        '<button class="btn-sm danger" data-act="del-su" data-id="' + esc(s.id) + '">🗑</button>' +
-      '</div></li>';
+      '<div style="padding:8px 10px 8px 0">' + socHtml + '</div>' +
+      '</div>';
   }).join('');
 }
 document.getElementById('listSuivi').addEventListener('click', function(e) {
