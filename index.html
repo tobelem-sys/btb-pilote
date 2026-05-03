@@ -129,9 +129,11 @@ a { color: var(--primary); }
 .btn-sm:hover { background: #f3f4f6; }
 .btn-sm.danger { color: var(--red); border-color: #fecaca; }
 /* ─── Suivi commercial : vue par client ─── */
+.suivi-list-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 860px) { .suivi-list-grid { grid-template-columns: 1fr; } }
 .suivi-client-group {
   background: #fff; border: 1px solid var(--border); border-radius: 10px;
-  margin-bottom: 10px; overflow: hidden; box-shadow: var(--shadow);
+  overflow: hidden; box-shadow: var(--shadow);
 }
 .suivi-client-hd {
   display: flex; align-items: center; justify-content: space-between;
@@ -1036,7 +1038,6 @@ function renderProspects() {
         (p.ville ? ' · ' + esc(p.ville) : '') + '</div>' +
       '</div>' +
       '<div class="item-actions">' +
-        (p.statut !== 'Transformé' ? '<button class="btn-sm" data-act="convert-pr" data-id="' + esc(p.id) + '" title="Convertir en chantier">→🏗</button>' : '') +
         '<button class="btn-sm" data-act="edit-pr" data-id="' + esc(p.id) + '">✏</button>' +
         '<button class="btn-sm danger" data-act="del-pr" data-id="' + esc(p.id) + '">🗑</button>' +
       '</div></li>';
@@ -1048,7 +1049,6 @@ document.getElementById('listProspects').addEventListener('click', function(e) {
   const id = b.dataset.id;
   if (b.dataset.act === 'edit-pr') openProspectModal(id);
   else if (b.dataset.act === 'del-pr') deleteProspectAsk(id);
-  else if (b.dataset.act === 'convert-pr') convertProspectAsk(id);
 });
 async function convertProspectAsk(id) {
   const p = STATE.prospects.find(function(x){return x.id === id;});
@@ -1278,15 +1278,25 @@ function renderSuivi() {
 
   var SOC_ORDER = ['ALL', 'CLO', 'JAR'];
 
-  el.innerHTML = clients.map(function(clientName) {
+  el.innerHTML = '<div class="suivi-list-grid">' + clients.map(function(clientName) {
     var socGroups = byClient[clientName];
     var activeSocs = SOC_ORDER.filter(function(c) { return socGroups[c]; });
 
-    // Total client
+    // Total + prospectId
     var totalClient = 0;
+    var prospectId = '';
     activeSocs.forEach(function(code) {
-      socGroups[code].forEach(function(a) { totalClient += Number(a.montant) || 0; });
+      socGroups[code].forEach(function(a) {
+        totalClient += Number(a.montant) || 0;
+        if (!prospectId && a.prospectId) prospectId = a.prospectId;
+      });
     });
+
+    // Bouton conversion chantier (si prospect lié)
+    var convBtn = '';
+    if (prospectId) {
+      convBtn = '<button class="btn-sm" data-act="conv-su" data-id="' + esc(prospectId) + '" title="Créer chantier" style="margin-left:6px">→🏗</button>';
+    }
 
     // Blocs par société
     var socHtml = activeSocs.map(function(code) {
@@ -1331,11 +1341,14 @@ function renderSuivi() {
     return '<div class="suivi-client-group">' +
       '<div class="suivi-client-hd">' +
         '<span class="suivi-client-name">' + esc(clientName) + '</span>' +
-        '<span class="suivi-client-total">' + fmtEuro(totalClient) + '</span>' +
+        '<span style="display:flex;align-items:center">' +
+          '<span class="suivi-client-total">' + fmtEuro(totalClient) + '</span>' +
+          convBtn +
+        '</span>' +
       '</div>' +
       '<div style="padding:8px 10px 8px 0">' + socHtml + '</div>' +
       '</div>';
-  }).join('');
+  }).join('') + '</div>';
 }
 document.getElementById('listSuivi').addEventListener('click', function(e) {
   const b = e.target.closest('button[data-act]');
@@ -1343,6 +1356,7 @@ document.getElementById('listSuivi').addEventListener('click', function(e) {
   const id = b.dataset.id;
   if (b.dataset.act === 'edit-su') openSuiviModal(id);
   else if (b.dataset.act === 'del-su') deleteSuiviAsk(id);
+  else if (b.dataset.act === 'conv-su') convertProspectAsk(id);
 });
 async function deleteSuiviAsk(id) {
   if (!confirm('Supprimer cette entrée ?')) return;
