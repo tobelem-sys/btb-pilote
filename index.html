@@ -476,7 +476,7 @@ a { color: var(--primary); }
         <button class="btn-primary" onclick="openProspectModal()">+ Nouveau prospect</button>
       </div>
       <div class="card" style="padding:10px">
-        <div class="flex-between">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:12px">
           <div>
             <label class="muted" style="font-size:.78rem">Société :</label>
             <select id="filtreSocProspect" onchange="renderProspects()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);margin-left:5px">
@@ -498,6 +498,10 @@ a { color: var(--primary); }
               <option>Perdu</option>
             </select>
           </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;font-weight:500;cursor:pointer;color:var(--muted)">
+            <input type="checkbox" id="filtreShowTransformed" onchange="renderProspects()" style="accent-color:var(--primary);width:15px;height:15px">
+            Afficher les basculés en suivi
+          </label>
         </div>
       </div>
       <ul class="item-list" id="listProspects"></ul>
@@ -1021,9 +1025,12 @@ async function saveChantierForm(e) {
 function renderProspects() {
   const fs = document.getElementById('filtreSocProspect').value;
   const ft = document.getElementById('filtreStatutProspect').value;
+  const showTransformedEl = document.getElementById('filtreShowTransformed');
+  const showTransformed = showTransformedEl ? showTransformedEl.checked : false;
   const list = STATE.prospects
     .filter(function(p) { return !fs || (p.societes || []).indexOf(fs) > -1; })
     .filter(function(p) { return !ft || p.statut === ft; })
+    .filter(function(p) { return ft || showTransformed || p.statut !== 'Transformé'; })
     .sort(function(a, b) { return (new Date(b.updatedAt || b.dateCreation || 0)) - (new Date(a.updatedAt || a.dateCreation || 0)); });
 
   const el = document.getElementById('listProspects');
