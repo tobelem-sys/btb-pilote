@@ -179,6 +179,16 @@ a { color: var(--primary); }
 .pr-montant-euro { font-size: .82rem; color: var(--muted); }
 .pr-montant-total { display: flex; align-items: center; justify-content: space-between; padding-top: 7px; border-top: 2px solid var(--border); font-size: .90rem; font-weight: 700; margin-top: 2px; }
 
+/* ─── Toast notification ─── */
+.app-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--primary); color: #fff; padding: 11px 22px;
+  border-radius: 9px; font-size: .88rem; font-weight: 600; z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0,0,0,.28); white-space: nowrap;
+  animation: toast-in .2s ease;
+}
+@keyframes toast-in { from { opacity:0; transform:translateX(-50%) translateY(10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+
 /* ─── Modal ─── */
 .modal-bg {
   position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
@@ -1086,7 +1096,8 @@ async function saveProspectForm(e) {
   e.preventDefault();
   const societes = collectSocChecks('socChecksPr');
   if (societes.length === 0) { alert('Sélectionnez au moins une société.'); return; }
-  // Collecter les montants par société
+
+  // Montants par société
   var montants = {};
   var montantTotal = 0;
   societes.forEach(function(code) {
@@ -1095,8 +1106,15 @@ async function saveProspectForm(e) {
     montants[code] = val;
     montantTotal += val;
   });
-  // Collecter les commerciaux par société
+
+  // Commerciaux par société
   var commerciaux = collectPrCommerciaux();
+
+  // Conditions de bascule automatique vers suivi commercial
+  var statutSaisi = document.getElementById('prStatut').value;
+  var allCommerciauxAssigned = societes.every(function(code) { return !!commerciaux[code]; });
+  var autoConvert = (statutSaisi === 'RDV OK') && allCommerciauxAssigned;
+
   const d = {
     id:            document.getElementById('prId').value || undefined,
     societes:      societes,
@@ -1105,7 +1123,7 @@ async function saveProspectForm(e) {
     telephone:     document.getElementById('prTel').value.trim(),
     email:         document.getElementById('prEmail').value.trim(),
     ville:         document.getElementById('prVille').value.trim(),
-    statut:        document.getElementById('prStatut').value,
+    statut:        autoConvert ? 'Transformé' : statutSaisi,
     source:        document.getElementById('prSource').value,
     commerciaux:   commerciaux,
     commercial:    Object.values(commerciaux).filter(Boolean),
@@ -1115,11 +1133,50 @@ async function saveProspectForm(e) {
     notes:         document.getElementById('prNotes').value,
     _user:         STATE.user && STATE.user.email
   };
+
   try {
     await API.saveProspect(d);
     STATE.prospects = await API.getProspects();
+
+    if (autoConvert) {
+      // Récupérer l'id du prospect sauvegardé
+      var savedP = STATE.prospects.find(function(p) {
+        return d.id ? p.id === d.id : (p.nom === d.nom && p.prenom === d.prenom);
+      });
+      var prospectId = savedP ? savedP.id : '';
+      var clientName = [d.prenom, d.nom].filter(Boolean).join(' ');
+      var today = new Date().toISOString().slice(0, 10);
+
+      // Créer une entrée suivi commercial par société
+      for (var i = 0; i < societes.length; i++) {
+        var code = societes[i];
+        await API.saveSuivi({
+          date:       today,
+          societe:    code,
+          type:       'devis_envoye',
+          client:     clientName,
+          commercial: commerciaux[code],
+          montant:    montants[code] || 0,
+          chantierId: '',
+          prospectId: prospectId,
+          notes:      '',
+          _user:      STATE.user && STATE.user.email
+        });
+      }
+      STATE.suivi = await API.getSuivi();
+    }
+
     closeModal('modalProspect');
-    renderProspects(); badges(); loadDashboard();
+    renderProspects();
+    if (autoConvert) {
+      renderSuivi();
+      // Basculer sur l'onglet Suivi commercial
+      var tabBtn = document.querySelector('[data-tab="suivi"]');
+      if (tabBtn) tabBtn.click();
+      showToast('✅ ' + societes.length + ' entrée(s) suivi commercial créée(s) — prospect transformé', 4000);
+    }
+    badges(); loadDashboard();
+
   } catch (err) { alert('Erreur : ' + err.message); }
 }
 
@@ -1727,6 +1784,13 @@ function collectPrCommerciaux() {
 // ═══════════════════════════════════════════════════════════
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function showToast(msg, ms) {
+  var t = document.createElement('div');
+  t.className = 'app-toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; }, (ms || 3000) - 300);
+  setTimeout(function() { t.remove(); }, ms || 3000);
+}
 function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function fmtEuro(n) {
   const v = Number(n) || 0;
