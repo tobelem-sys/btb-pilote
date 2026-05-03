@@ -157,15 +157,16 @@ a { color: var(--primary); }
 .soc-checks label.sel-JAR { border-color: var(--jar); background: #eaf6d0; }
 .soc-checks input { accent-color: var(--primary); margin: 0; }
 
-/* ─── Commercial(aux) checkboxes ─── */
-.comm-checks { display: flex; gap: 6px; flex-wrap: wrap; }
-.comm-checks label {
-  display: flex; align-items: center; gap: 5px; padding: 5px 10px;
-  border: 1.5px solid var(--border); border-radius: 7px; cursor: pointer;
-  font-size: .82rem; font-weight: 500; transition: all .15s; user-select: none;
+/* ─── Commercial par société (prospect) ─── */
+.pr-comm-block { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+.pr-comm-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pr-comm-radio {
+  display: flex; align-items: center; gap: 5px; font-size: .82rem; cursor: pointer;
+  padding: 4px 10px; border: 1.5px solid var(--border); border-radius: 6px;
+  user-select: none; transition: all .12s;
 }
-.comm-checks label.sel { border-color: var(--primary); background: #f0f0f8; font-weight: 700; }
-.comm-checks input { accent-color: var(--primary); margin: 0; }
+.pr-comm-radio.sel { border-color: var(--primary); background: #f0f0f8; font-weight: 700; }
+.pr-comm-radio input[type=radio] { accent-color: var(--primary); }
 
 /* ─── Montants par société (prospect) ─── */
 .pr-montants-block { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
@@ -589,8 +590,8 @@ a { color: var(--primary); }
       </div>
     </div>
     <div class="form-group">
-      <label>Commercial(aux)</label>
-      <div class="comm-checks" id="prCommercialChecks"></div>
+      <label>Commercial par société</label>
+      <div id="prCommerciauxBlock"></div>
     </div>
     <div class="form-group"><label>Date RDV</label><input type="date" id="prDateRdv"></div>
     <div class="form-group"><label>Montants estimés (€)</label><div id="prMontantsBlock"></div></div>
@@ -1051,9 +1052,10 @@ function updatePrMontantFields(montants) {
   recalc();
 }
 
-// Mise à jour des montants quand on coche/décoche une société
+// Mise à jour montants + commerciaux quand on coche/décoche une société
 document.getElementById('socChecksPr').addEventListener('change', function() {
   updatePrMontantFields(collectPrMontants());
+  updatePrCommerciauxBlock(collectPrCommerciaux());
 });
 
 function openProspectModal(id) {
@@ -1067,10 +1069,11 @@ function openProspectModal(id) {
   document.getElementById('prVille').value       = p ? p.ville || '' : '';
   document.getElementById('prStatut').value      = p ? p.statut || 'Nouveau' : 'Nouveau';
   document.getElementById('prSource').value      = p ? p.source || '' : '';
-  renderCommercialChecks('prCommercialChecks', p ? (p.commercial || []) : []);
   document.getElementById('prDateRdv').value     = p ? dstr(p.dateRdv) : '';
   document.getElementById('prNotes').value       = p ? p.notes || '' : '';
   renderSocChecks('socChecksPr', p ? (p.societes || []) : []);
+  // Commerciaux par société
+  updatePrCommerciauxBlock(p ? (p.commerciaux || {}) : {});
   // Montants par société (compatibilité : si ancienne donnée montantEstime uniquement)
   var initMontants = p ? (p.montants || {}) : {};
   if (p && !p.montants && p.montantEstime && (p.societes || []).length > 0) {
@@ -1092,6 +1095,8 @@ async function saveProspectForm(e) {
     montants[code] = val;
     montantTotal += val;
   });
+  // Collecter les commerciaux par société
+  var commerciaux = collectPrCommerciaux();
   const d = {
     id:            document.getElementById('prId').value || undefined,
     societes:      societes,
@@ -1102,7 +1107,8 @@ async function saveProspectForm(e) {
     ville:         document.getElementById('prVille').value.trim(),
     statut:        document.getElementById('prStatut').value,
     source:        document.getElementById('prSource').value,
-    commercial:    collectCommercialChecks('prCommercialChecks'),
+    commerciaux:   commerciaux,
+    commercial:    Object.values(commerciaux).filter(Boolean),
     dateRdv:       document.getElementById('prDateRdv').value,
     montants:      montants,
     montantEstime: montantTotal,
@@ -1661,27 +1667,59 @@ function collectSocChecks(containerId) {
 }
 
 var COMMERCIAUX = ['Maxime', 'Lauren', 'Pierre Babad', 'Pierre Bignon', 'Thomas'];
-function renderCommercialChecks(containerId, selected) {
-  // Accepte string (ancien format) ou tableau
-  var selArr = Array.isArray(selected) ? selected : (selected ? [selected] : []);
-  var html = COMMERCIAUX.map(function(name) {
-    var on = selArr.indexOf(name) > -1;
-    return '<label class="' + (on ? 'sel' : '') + '">' +
-      '<input type="checkbox" value="' + esc(name) + '"' + (on ? ' checked' : '') + '>' +
-      esc(name) + '</label>';
-  }).join('');
-  var el = document.getElementById(containerId);
-  el.innerHTML = html;
-  el.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
-    cb.addEventListener('change', function() {
-      var label = cb.closest('label');
-      if (cb.checked) label.classList.add('sel');
-      else label.classList.remove('sel');
+var SOC_COMMERCIAUX = {
+  ALL: ['Pierre Bignon', 'Thomas'],
+  CLO: ['Maxime', 'Lauren'],
+  JAR: ['Pierre Babad']
+};
+var SOC_FR_LABELS = { ALL: 'Allée', CLO: 'Clôture', JAR: 'Jardin' };
+
+/* Affiche un sélecteur de commercial (radio) pour chaque société cochée */
+function updatePrCommerciauxBlock(commerciaux) {
+  var checked = collectSocChecks('socChecksPr');
+  var block = document.getElementById('prCommerciauxBlock');
+  if (!block) return;
+  if (checked.length === 0) {
+    block.innerHTML = '<span style="color:var(--muted);font-size:.82rem">Sélectionnez d\'abord une société.</span>';
+    return;
+  }
+  var html = '<div class="pr-comm-block">';
+  checked.forEach(function(code) {
+    var options = SOC_COMMERCIAUX[code] || COMMERCIAUX;
+    var curVal = commerciaux && commerciaux[code] ? commerciaux[code] : '';
+    // Si un seul choix possible → pré-cocher automatiquement
+    if (!curVal && options.length === 1) curVal = options[0];
+    html += '<div class="pr-comm-row">';
+    html += '<span class="pr-montant-label l-' + code + '">' + (SOC_FR_LABELS[code] || code) + '</span>';
+    options.forEach(function(name) {
+      var sel = (name === curVal) ? ' sel' : '';
+      html += '<label class="pr-comm-radio' + sel + '">' +
+        '<input type="radio" name="prComm_' + code + '" value="' + esc(name) + '"' + (name === curVal ? ' checked' : '') + '> ' +
+        esc(name) + '</label>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  block.innerHTML = html;
+  // Toggle classe .sel sur changement
+  block.querySelectorAll('input[type=radio]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      block.querySelectorAll('input[name="' + radio.name + '"]').forEach(function(r) {
+        var lbl = r.closest('label');
+        if (r.checked) lbl.classList.add('sel'); else lbl.classList.remove('sel');
+      });
     });
   });
 }
-function collectCommercialChecks(containerId) {
-  return Array.from(document.getElementById(containerId).querySelectorAll('input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
+
+/* Lit le commercial sélectionné pour chaque société */
+function collectPrCommerciaux() {
+  var result = {};
+  ['ALL', 'CLO', 'JAR'].forEach(function(code) {
+    var el = document.querySelector('input[name="prComm_' + code + '"]:checked');
+    if (el) result[code] = el.value;
+  });
+  return result;
 }
 
 // ═══════════════════════════════════════════════════════════
