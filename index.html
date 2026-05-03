@@ -154,15 +154,26 @@ a { color: var(--primary); }
 .suivi-soc-commercial { font-size: .80rem; color: var(--muted); }
 .suivi-soc-total { margin-left: auto; font-weight: 700; font-size: .82rem; color: var(--text); }
 .suivi-action-row {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: flex-start; gap: 8px;
   padding: 6px 10px; border-bottom: 1px solid #f0f0f2; font-size: .83rem;
 }
 .suivi-action-row:last-child { border-bottom: 0; }
-.suivi-action-icon { flex: 0 0 18px; font-size: .9rem; }
+.suivi-action-icon { flex: 0 0 18px; font-size: .9rem; margin-top: 2px; }
+.suivi-action-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.suivi-action-top { display: flex; align-items: center; gap: 8px; }
 .suivi-action-type { flex: 1; font-weight: 600; }
 .suivi-action-date { flex: 0 0 78px; color: var(--muted); font-size: .77rem; }
 .suivi-action-amt { flex: 0 0 82px; text-align: right; font-weight: 700; }
 .suivi-action-btns { display: flex; gap: 3px; }
+.suivi-action-note {
+  font-size: .77rem; color: var(--muted); padding: 2px 5px; border-radius: 4px;
+  min-height: 18px; outline: none; border: 1px solid transparent;
+  transition: border-color .15s, background .15s; cursor: text; line-height: 1.4;
+  white-space: pre-wrap; word-break: break-word;
+}
+.suivi-action-note:hover { border-color: var(--border); background: #f9fafb; }
+.suivi-action-note:focus { border-color: #a0a0b0; background: #fff; color: var(--text); }
+.suivi-action-note:empty::before { content: 'Ajouter une note…'; color: #c8c8d0; font-style: italic; pointer-events: none; }
 
 .btn-primary {
   background: var(--primary); color: #fff; border: 0; padding: 9px 14px;
@@ -511,10 +522,13 @@ a { color: var(--primary); }
             <label class="muted" style="font-size:.78rem">Type :</label>
             <select id="filtreTypeSuivi" onchange="renderSuivi()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);margin-left:5px">
               <option value="">Tous</option>
+              <option value="r1">R1</option>
+              <option value="r2">R2</option>
+              <option value="r3">R3</option>
+              <option value="rplus">R+</option>
               <option value="devis_envoye">Devis envoyé</option>
-              <option value="devis_signe">Devis signé</option>
-              <option value="facture">Facture</option>
-              <option value="encaissement">Encaissement</option>
+              <option value="perdu">Perdu</option>
+              <option value="signe">Signé</option>
             </select>
           </div>
         </div>
@@ -717,10 +731,13 @@ a { color: var(--primary); }
     <div class="form-group">
       <label>Type *</label>
       <select id="suType" required>
+        <option value="r1">R1</option>
+        <option value="r2">R2</option>
+        <option value="r3">R3</option>
+        <option value="rplus">R+</option>
         <option value="devis_envoye">Devis envoyé</option>
-        <option value="devis_signe">Devis signé</option>
-        <option value="facture">Facture</option>
-        <option value="encaissement">Encaissement</option>
+        <option value="perdu">Perdu</option>
+        <option value="signe">Signé</option>
       </select>
     </div>
     <div class="form-group"><label>Client</label><input id="suClient"></div>
@@ -1220,10 +1237,13 @@ async function saveProspectForm(e) {
 // Suivi commercial
 // ═══════════════════════════════════════════════════════════
 const TYPE_LABELS = {
-  devis_envoye:  { label: 'Devis envoyé',  icon: '📤' },
-  devis_signe:   { label: 'Devis signé',   icon: '✅' },
-  facture:       { label: 'Facture',       icon: '🧾' },
-  encaissement:  { label: 'Encaissement',  icon: '💰' }
+  r1:           { label: 'R1',           icon: '🗓' },
+  r2:           { label: 'R2',           icon: '🗓' },
+  r3:           { label: 'R3',           icon: '🗓' },
+  rplus:        { label: 'R+',           icon: '🗓' },
+  devis_envoye: { label: 'Devis envoyé', icon: '📤' },
+  perdu:        { label: 'Perdu',        icon: '❌' },
+  signe:        { label: 'Signé',        icon: '✅' }
 };
 function renderSuivi() {
   var fs = document.getElementById('filtreSocSuivi').value;
@@ -1283,12 +1303,17 @@ function renderSuivi() {
         var t = TYPE_LABELS[a.type] || { label: a.type || '?', icon: '·' };
         return '<div class="suivi-action-row">' +
           '<span class="suivi-action-icon">' + t.icon + '</span>' +
-          '<span class="suivi-action-type">' + esc(t.label) + '</span>' +
-          '<span class="suivi-action-date">' + fmtDate(a.date) + '</span>' +
-          '<span class="suivi-action-amt">' + fmtEuro(a.montant) + '</span>' +
-          '<div class="suivi-action-btns">' +
-            '<button class="btn-sm" data-act="edit-su" data-id="' + esc(a.id) + '">✏</button>' +
-            '<button class="btn-sm danger" data-act="del-su" data-id="' + esc(a.id) + '">🗑</button>' +
+          '<div class="suivi-action-body">' +
+            '<div class="suivi-action-top">' +
+              '<span class="suivi-action-type">' + esc(t.label) + '</span>' +
+              '<span class="suivi-action-date">' + fmtDate(a.date) + '</span>' +
+              '<span class="suivi-action-amt">' + fmtEuro(a.montant) + '</span>' +
+              '<div class="suivi-action-btns">' +
+                '<button class="btn-sm" data-act="edit-su" data-id="' + esc(a.id) + '">✏</button>' +
+                '<button class="btn-sm danger" data-act="del-su" data-id="' + esc(a.id) + '">🗑</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="suivi-action-note" contenteditable="true" data-note-id="' + esc(a.id) + '">' + esc(a.notes || '') + '</div>' +
           '</div>' +
           '</div>';
       }).join('');
@@ -1333,7 +1358,7 @@ function openSuiviModal(id) {
   document.getElementById('suId').value          = s ? s.id : '';
   document.getElementById('suDate').value        = s ? dstr(s.date) : new Date().toISOString().slice(0,10);
   document.getElementById('suSociete').value     = s ? s.societe || 'CLO' : 'CLO';
-  document.getElementById('suType').value        = s ? s.type || 'devis_envoye' : 'devis_envoye';
+  document.getElementById('suType').value        = s ? s.type || 'r1' : 'r1';
   document.getElementById('suClient').value      = s ? s.client || '' : '';
   document.getElementById('suCommercial').value  = s ? s.commercial || '' : '';
   document.getElementById('suMontant').value     = s ? s.montant || '' : '';
@@ -1373,6 +1398,37 @@ async function saveSuiviForm(e) {
     renderSuivi(); badges(); loadDashboard();
   } catch (err) { alert('Erreur : ' + err.message); }
 }
+
+/* ─── Note inline sur la vue suivi ─── */
+async function autoSaveSuiviNote(id, note) {
+  var idx = (STATE.suivi || []).findIndex(function(x) { return x.id === id; });
+  if (idx < 0) return;
+  var s = STATE.suivi[idx];
+  if ((s.notes || '') === note) return; // pas de changement
+  var prev = s.notes || '';
+  s.notes = note;
+  try {
+    await API.saveSuivi(Object.assign({}, s, { _user: STATE.user && STATE.user.email }));
+  } catch (err) {
+    STATE.suivi[idx].notes = prev;
+    showToast('Erreur sauvegarde note', 2000);
+  }
+}
+
+// Sauvegarde note au blur (focusout remonte au container)
+document.getElementById('listSuivi').addEventListener('focusout', function(e) {
+  var noteEl = e.target.closest('[data-note-id]');
+  if (!noteEl) return;
+  autoSaveSuiviNote(noteEl.dataset.noteId, noteEl.textContent.trim());
+});
+
+// Entrée = valider et quitter la note (pas de saut de ligne)
+document.getElementById('listSuivi').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.target.closest('[data-note-id]')) {
+    e.preventDefault();
+    e.target.blur();
+  }
+});
 
 // ═══════════════════════════════════════════════════════════
 // Planning (Gantt commun Allée / Clôture / Jardin)
