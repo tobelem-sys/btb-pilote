@@ -292,14 +292,15 @@ a { color: var(--primary); }
 }
 .gantt-header-row .gantt-client { background: #f9fafb; font-weight: 700; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
 .gantt-track { position: relative; flex: 1; min-height: 40px; background-image: linear-gradient(to right, #eef0f3 1px, transparent 1px); background-size: calc(100% / var(--cols, 8)) 100%; min-width: calc(var(--cols, 8) * 24px); }
-.gantt-header-row .gantt-track { display: block; position: relative; min-height: 28px; background-image: none; min-width: calc(var(--cols, 8) * 24px); }
+.gantt-header-row .gantt-track { display: block; position: relative; min-height: 44px; background-image: none; min-width: calc(var(--cols, 8) * 24px); }
 .gantt-header-row .gantt-cell {
   position: absolute; top: 0; bottom: 0;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 0;
   padding: 0 2px; border-right: 1px solid #eef0f3;
-  font-size: .72rem; color: var(--muted); font-weight: 600;
-  overflow: hidden;
+  color: var(--muted); font-weight: 600; overflow: hidden;
 }
+.gantt-day-letter { font-size: .56rem; font-weight: 700; opacity: .6; line-height: 1.2; text-transform: uppercase; }
+.gantt-day-num    { font-size: .68rem; font-weight: 600; line-height: 1.2; }
 .gantt-header-row .gantt-cell.today { background: #fef3c7; color: var(--text); }
 .gantt-header-row .gantt-cell.week-start { border-left: 2px solid var(--border); }
 .gantt-bar {
@@ -553,6 +554,10 @@ a { color: var(--primary); }
         <button class="nav-btn" id="pmToday">Aujourd'hui</button>
         <button class="nav-btn" id="pmNext">Suivant →</button>
         <span class="gantt-period" id="planningPeriode"></span>
+        <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;font-weight:500;cursor:pointer;color:var(--muted);margin-left:auto">
+          <input type="checkbox" id="ganttHideWeekends" onchange="renderPlanning()" style="accent-color:var(--primary);width:14px;height:14px">
+          Masquer les week-ends
+        </label>
       </div>
       <div class="gantt-wrap">
         <div class="gantt-header-row" id="ganttHeader"></div>
@@ -786,7 +791,10 @@ const STATE = {
   planningMode: 'day',      // always day mode
   planningOffset: 0,        // décalage en semaines (0 = semaine courante)
   planningStart: null,      // Date lundi de la vue courante (pour drag)
-  planningUnits: 0          // nb de colonnes courantes (pour drag)
+  planningUnits: 0,         // nb de colonnes courantes (pour drag)
+  hideWeekends: false,      // masquer les colonnes week-end
+  ganttVisCal: null,        // visible index → calendar day offset
+  ganttCalToVis: null       // calendar day offset → visible index (-1 = caché)
 };
 
 const SOC_COLORS = { ALL: '#cb282b', CLO: '#f1cb00', JAR: '#90c315' };
@@ -1521,10 +1529,13 @@ function buildHolidays(startDate, endDate) {
 
 /* Vrai si l'unité (en mode jour) est un WE ou férié */
 function isDayBlocked(unitIndex) {
+  const calIdx = (STATE.ganttVisCal && STATE.ganttVisCal[unitIndex] !== undefined)
+    ? STATE.ganttVisCal[unitIndex] : unitIndex;
   const d = new Date(STATE.planningStart);
-  d.setDate(d.getDate() + unitIndex);
+  d.setDate(d.getDate() + calIdx);
   const dw = d.getDay();
-  return dw === 0 || dw === 6 || HOLIDAYS.has(localDateStr(d));
+  if (!STATE.hideWeekends) return dw === 0 || dw === 6 || HOLIDAYS.has(localDateStr(d));
+  return HOLIDAYS.has(localDateStr(d)); // week-ends déjà absents des index visibles
 }
 
 /* Cherche le jour ouvrable le plus proche (dir = +1 droite, -1 gauche) */
@@ -1542,11 +1553,29 @@ function renderPlanning() {
   startMonday.setDate(startMonday.getDate() + STATE.planningOffset * 7);
 
   const nbDays  = PLANNING_WEEKS * 7;          // 8 semaines = 56 jours
-  const units   = nbDays;
   const endDate = new Date(startMonday); endDate.setDate(endDate.getDate() + nbDays - 1);
   STATE.planningStart = new Date(startMonday);
-  STATE.planningUnits = units;
   HOLIDAYS = buildHolidays(startMonday, endDate);
+
+  // Mapping jours calendaires ↔ colonnes visibles
+  const hideWeekends = !!(document.getElementById('ganttHideWeekends') && document.getElementById('ganttHideWeekends').checked);
+  STATE.hideWeekends = hideWeekends;
+  const visCal   = [];  // visible index → calendar day offset
+  const calToVis = [];  // calendar day offset → visible index (-1 = caché)
+  for (let i = 0; i < nbDays; i++) {
+    const d0 = new Date(startMonday); d0.setDate(d0.getDate() + i);
+    const dw0 = d0.getDay();
+    if (!hideWeekends || (dw0 !== 0 && dw0 !== 6)) {
+      calToVis[i] = visCal.length;
+      visCal.push(i);
+    } else {
+      calToVis[i] = -1;
+    }
+  }
+  const units = visCal.length;
+  STATE.planningUnits = units;
+  STATE.ganttVisCal   = visCal;
+  STATE.ganttCalToVis = calToVis;
 
   document.getElementById('planningPeriode').textContent =
     'Du ' + fmtDate(startMonday) + ' au ' + fmtDate(endDate) +
@@ -1554,17 +1583,21 @@ function renderPlanning() {
 
   // Header + calcul des overlays weekend
   const today = new Date(); today.setHours(0,0,0,0);
+  const DAY_LETTERS = ['D','L','M','M','J','V','S'];
   let header = '';
   let weekendOverlay = '';
 
   for (let i = 0; i < nbDays; i++) {
     const d = new Date(startMonday); d.setDate(d.getDate() + i);
     const dw = d.getDay();
-    const isMon    = dw === 1;
-    const isToday  = d.getTime() === today.getTime();
-    const isWe      = dw === 0 || dw === 6;
+    const isMon   = dw === 1;
+    const isToday = d.getTime() === today.getTime();
+    const isWe    = dw === 0 || dw === 6;
+    const visIdx  = calToVis[i];
+    // Sauter les week-ends dans l'en-tête si masqués
+    if (hideWeekends && isWe) continue;
     const isHoliday = !isWe && HOLIDAYS.has(localDateStr(d));
-    const cellLeft  = (i / units * 100).toFixed(3);
+    const cellLeft  = (visIdx / units * 100).toFixed(3);
     const cellWidth = (1 / units * 100).toFixed(3);
     header += '<div class="gantt-cell' +
       (isMon && i > 0 ? ' week-start' : '') +
@@ -1572,18 +1605,20 @@ function renderPlanning() {
       (isWe      ? ' weekend' : '') +
       (isHoliday ? ' holiday' : '') +
       '" style="left:' + cellLeft + '%;width:' + cellWidth + '%">' +
-      d.getDate() + '/' + (d.getMonth() + 1) + '</div>';
-    // Samedi → bande de 2 jours (WE)
-    if (dw === 6) {
+      '<span class="gantt-day-letter">' + DAY_LETTERS[dw] + '</span>' +
+      '<span class="gantt-day-num">' + d.getDate() + '/' + (d.getMonth() + 1) + '</span>' +
+      '</div>';
+    // Samedi → bande de 2 jours (WE) — omise si week-ends masqués
+    if (!hideWeekends && dw === 6) {
       const span  = Math.min(2, nbDays - i);
-      const left  = (i / units * 100).toFixed(3);
-      const width = (span / units * 100).toFixed(3);
+      const left  = (visIdx / units * 100).toFixed(3);
+      const width = (span   / units * 100).toFixed(3);
       weekendOverlay += '<div class="gantt-we" style="left:' + left + '%;width:' + width + '%"></div>';
     }
     // Férié (hors WE) → bande individuelle
     if (isHoliday) {
-      const left  = (i / units * 100).toFixed(3);
-      const width = (1  / units * 100).toFixed(3);
+      const left  = (visIdx / units * 100).toFixed(3);
+      const width = (1      / units * 100).toFixed(3);
       weekendOverlay += '<div class="gantt-we gantt-holiday-band" style="left:' + left + '%;width:' + width + '%"></div>';
     }
   }
@@ -1615,11 +1650,17 @@ function renderPlanning() {
     deb.setHours(0,0,0,0); fin.setHours(0,0,0,0);
     const startUnit = diffDays(startMonday, deb);
     const endUnit   = diffDays(startMonday, fin);
-    if (endUnit < 0 || startUnit >= units) return '';
-    const s = Math.max(0, startUnit);
-    const e = Math.min(units - 1, endUnit);
-    const span  = e - s + 1;
-    const left  = (s / units * 100).toFixed(3);
+    if (endUnit < 0 || startUnit >= nbDays) return '';
+    const s_cal = Math.max(0, startUnit);
+    const e_cal = Math.min(nbDays - 1, endUnit);
+    // Convertir en index visibles (sauter les WE masqués)
+    let sv = calToVis[s_cal];
+    if (sv < 0) { for (let k = s_cal + 1; k <= e_cal; k++) { if (calToVis[k] >= 0) { sv = calToVis[k]; break; } } }
+    let ev = calToVis[e_cal];
+    if (ev < 0) { for (let k = e_cal - 1; k >= s_cal; k--) { if (calToVis[k] >= 0) { ev = calToVis[k]; break; } } }
+    if (sv === undefined || sv < 0 || ev === undefined || ev < 0 || ev < sv) return '';
+    const span  = ev - sv + 1;
+    const left  = (sv / units * 100).toFixed(3);
     const width = (span / units * 100).toFixed(3);
     const cls = 's-' + (p.enseigne || '').toUpperCase() +
       (p.statut === 'Terminé' ? ' done' : '') +
@@ -1698,10 +1739,12 @@ function localDateStr(d) {
     String(d.getDate()).padStart(2, '0');
 }
 
-/* Convertit un index de jour en date locale yyyy-mm-dd */
+/* Convertit un index de colonne visible en date locale yyyy-mm-dd */
 function _ganttDateStr(u) {
+  const calIdx = (STATE.ganttVisCal && STATE.ganttVisCal[u] !== undefined)
+    ? STATE.ganttVisCal[u] : u;
   const d = new Date(STATE.planningStart);
-  d.setDate(d.getDate() + u);
+  d.setDate(d.getDate() + calIdx);
   return localDateStr(d); // local, pas UTC
 }
 
@@ -1723,11 +1766,21 @@ document.querySelector('.gantt-wrap').addEventListener('mousedown', function(e) 
   const track = bar.closest('.gantt-track');
   const tRect = track.getBoundingClientRect();
 
-  // Positions courantes en jours
+  // Positions courantes en index visibles
   const debDate = new Date(p.dateDebut); debDate.setHours(0, 0, 0, 0);
   const finDate = new Date(p.dateFin || p.dateDebut); finDate.setHours(0, 0, 0, 0);
-  const deb0 = diffDays(STATE.planningStart, debDate);
-  const fin0 = diffDays(STATE.planningStart, finDate);
+  const debCalIdx = diffDays(STATE.planningStart, debDate);
+  const finCalIdx = diffDays(STATE.planningStart, finDate);
+  function _calToVis(ci) {
+    if (!STATE.ganttCalToVis) return ci;
+    const v = STATE.ganttCalToVis[ci];
+    if (v !== undefined && v >= 0) return v;
+    for (let k = ci + 1; k < STATE.ganttCalToVis.length; k++) { if (STATE.ganttCalToVis[k] >= 0) return STATE.ganttCalToVis[k]; }
+    for (let k = ci - 1; k >= 0; k--) { if (STATE.ganttCalToVis[k] >= 0) return STATE.ganttCalToVis[k]; }
+    return Math.max(0, ci);
+  }
+  const deb0 = _calToVis(debCalIdx);
+  const fin0 = _calToVis(finCalIdx);
 
   _ganttDrag = {
     type, id,
