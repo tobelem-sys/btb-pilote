@@ -422,6 +422,7 @@ a { color: var(--primary); }
     <button data-tab="suivi">📈 Suivi commercial</button>
     <button data-tab="chantiers">🏗 Chantiers</button>
     <button data-tab="planning">📅 Planning</button>
+    <button data-tab="admin" style="display:none">⚙ Admin</button>
   </nav>
 
   <div class="container">
@@ -568,6 +569,15 @@ a { color: var(--primary); }
         <span class="lg-CLO">Clôture</span>
         <span class="lg-JAR">Jardin</span>
       </div>
+    </section>
+
+    <!-- Admin — Utilisateurs -->
+    <section id="tab-admin" class="tab-content hidden">
+      <div class="flex-between" style="margin-bottom:10px">
+        <h2 style="margin:0;font-size:1.15rem">Utilisateurs</h2>
+        <button class="btn-primary" onclick="openUserModal()">+ Nouvel utilisateur</button>
+      </div>
+      <ul class="item-list" id="listUsers"></ul>
     </section>
 
   </div>
@@ -775,6 +785,54 @@ a { color: var(--primary); }
   </form>
 </div>
 
+<!-- ═══ MODALE Utilisateur (admin) ═══ -->
+<div class="modal-bg" id="modalUser">
+  <form class="modal" onsubmit="saveUserForm(event)">
+    <h2 id="titleUserModal">Nouvel utilisateur</h2>
+    <input type="hidden" id="uId">
+    <div class="form-row">
+      <div class="form-group"><label>Prénom</label><input id="uPrenom" required></div>
+      <div class="form-group"><label>Nom</label><input id="uNom" required></div>
+    </div>
+    <div class="form-group"><label>Email *</label><input type="email" id="uEmail" required></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Mot de passe *</label>
+        <input type="text" id="uPwd" placeholder="Laisser vide = inchangé (modif)">
+      </div>
+      <div class="form-group">
+        <label>Rôle *</label>
+        <select id="uRole" required>
+          <option value="commercial">Commercial</option>
+          <option value="gerant">Gérant</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Société principale</label>
+        <select id="uSocietePrincipale">
+          <option value="">— Toutes —</option>
+          <option value="ALL">Allée</option>
+          <option value="CLO">Clôture</option>
+          <option value="JAR">Jardin</option>
+        </select>
+      </div>
+      <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:6px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500">
+          <input type="checkbox" id="uActif" checked style="accent-color:var(--primary);width:15px;height:15px">
+          Compte actif
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-sm" onclick="closeModal('modalUser')">Annuler</button>
+      <button type="submit" class="btn-primary">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
 <script src="./api.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════
@@ -845,6 +903,8 @@ async function bootApp() {
     STATE.users = data.users || [];
 
     populateCommercialSelects();
+    const adminTab = document.querySelector('#navTabs [data-tab="admin"]');
+    if (adminTab) adminTab.style.display = STATE.user.role === 'admin' ? '' : 'none';
     await loadDashboard();
     renderChantiers();
     renderProspects();
@@ -886,6 +946,7 @@ document.getElementById('navTabs').addEventListener('click', function(e) {
   document.getElementById('tab-' + b.dataset.tab).classList.remove('hidden');
   if (b.dataset.tab === 'dashboard') loadDashboard();
   if (b.dataset.tab === 'planning')  renderPlanning();
+  if (b.dataset.tab === 'admin')     renderUsers();
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -1053,6 +1114,7 @@ function renderProspects() {
         (p.ville ? ' · ' + esc(p.ville) : '') + '</div>' +
       '</div>' +
       '<div class="item-actions">' +
+        '<button class="btn-sm" data-act="to-suivi" data-id="' + esc(p.id) + '" title="Créer une entrée suivi" style="color:var(--primary);font-weight:600">→ Suivi</button>' +
         '<button class="btn-sm" data-act="edit-pr" data-id="' + esc(p.id) + '">✏</button>' +
         '<button class="btn-sm danger" data-act="del-pr" data-id="' + esc(p.id) + '">🗑</button>' +
       '</div></li>';
@@ -1064,7 +1126,20 @@ document.getElementById('listProspects').addEventListener('click', function(e) {
   const id = b.dataset.id;
   if (b.dataset.act === 'edit-pr') openProspectModal(id);
   else if (b.dataset.act === 'del-pr') deleteProspectAsk(id);
+  else if (b.dataset.act === 'to-suivi') openSuiviFromProspect(id);
 });
+function openSuiviFromProspect(prospectId) {
+  const p = STATE.prospects.find(function(x) { return x.id === prospectId; });
+  if (!p) return;
+  openSuiviModal(null);
+  const nom = [p.prenom, p.nom].filter(Boolean).join(' ');
+  document.getElementById('suClient').value = nom || p.ref || '';
+  const soc = (p.societes && p.societes.length > 0) ? p.societes[0] : 'CLO';
+  document.getElementById('suSociete').value = soc;
+  const comm = Array.isArray(p.commercial) ? p.commercial[0] : (p.commercial || '');
+  if (comm) document.getElementById('suCommercial').value = comm;
+  document.getElementById('suProspect').value = prospectId;
+}
 async function convertProspectAsk(id) {
   const p = STATE.prospects.find(function(x){return x.id === id;});
   if (!confirm('Convertir le prospect ' + ([p.prenom, p.nom].filter(Boolean).join(' ') || p.ref) + ' en chantier signé ?')) return;
@@ -2032,6 +2107,105 @@ function fmtDate(d) {
 function dstr(d) {
   if (!d) return '';
   try { return new Date(d).toISOString().slice(0,10); } catch(e) { return ''; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Admin — Gestion des utilisateurs
+// ═══════════════════════════════════════════════════════════
+const ROLE_LABELS = { admin: 'Admin', gerant: 'Gérant', commercial: 'Commercial' };
+const SOC_PRINCIPALE_LABELS = { ALL: 'Allée', CLO: 'Clôture', JAR: 'Jardin' };
+
+function renderUsers() {
+  const el = document.getElementById('listUsers');
+  if (!el) return;
+  const users = STATE.users || [];
+  if (users.length === 0) { el.innerHTML = '<div class="empty">Aucun utilisateur</div>'; return; }
+  el.innerHTML = users.map(function(u) {
+    const name = [u.prenom, u.nom].filter(Boolean).join(' ') || u.email;
+    const roleLbl = ROLE_LABELS[u.role] || u.role || '?';
+    const socLbl = u.societePrincipale ? (SOC_PRINCIPALE_LABELS[u.societePrincipale] || u.societePrincipale) : 'Toutes';
+    const isActive = u.actif !== false && String(u.actif).toLowerCase() !== 'false';
+    const actifBadge = isActive
+      ? '<span style="color:#22c55e;font-size:.75rem;font-weight:600;margin-left:6px">● Actif</span>'
+      : '<span style="color:#ef4444;font-size:.75rem;font-weight:600;margin-left:6px">● Inactif</span>';
+    const isSelf = u.id === (STATE.user && STATE.user.id);
+    return '<li class="item-card">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-weight:600;margin-bottom:2px">' + esc(name) + actifBadge + '</div>' +
+        '<div style="font-size:.82rem;color:var(--muted)">' + esc(u.email) + '</div>' +
+        '<div style="font-size:.78rem;margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+          '<span style="padding:2px 8px;border-radius:10px;background:#e0f2fe;color:var(--primary);font-weight:600">' + esc(roleLbl) + '</span>' +
+          '<span style="color:var(--muted)">Société : ' + esc(socLbl) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-shrink:0">' +
+        '<button class="btn-sm" data-act="edit-usr" data-id="' + esc(u.id) + '">✏️ Modifier</button>' +
+        (!isSelf ? '<button class="btn-sm" data-act="del-usr" data-id="' + esc(u.id) + '" style="color:#ef4444">🗑️ Supprimer</button>' : '') +
+      '</div>' +
+    '</li>';
+  }).join('');
+}
+
+document.getElementById('listUsers').addEventListener('click', function(e) {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const id = b.dataset.id;
+  if (b.dataset.act === 'edit-usr') openUserModal(id);
+  else if (b.dataset.act === 'del-usr') deleteUserAsk(id);
+});
+
+function openUserModal(id) {
+  const u = id ? (STATE.users || []).find(function(x) { return x.id === id; }) : null;
+  document.getElementById('titleUserModal').textContent = u ? 'Modifier utilisateur' : 'Nouvel utilisateur';
+  document.getElementById('uId').value               = u ? u.id : '';
+  document.getElementById('uPrenom').value           = u ? (u.prenom || '') : '';
+  document.getElementById('uNom').value              = u ? (u.nom || '') : '';
+  document.getElementById('uEmail').value            = u ? (u.email || '') : '';
+  document.getElementById('uPwd').value              = '';
+  document.getElementById('uPwd').placeholder        = u ? 'Laisser vide = mot de passe inchangé' : 'Mot de passe *';
+  document.getElementById('uRole').value             = u ? (u.role || 'commercial') : 'commercial';
+  document.getElementById('uSocietePrincipale').value = u ? (u.societePrincipale || '') : '';
+  document.getElementById('uActif').checked          = u
+    ? (u.actif !== false && String(u.actif).toLowerCase() !== 'false')
+    : true;
+  openModal('modalUser');
+}
+
+async function saveUserForm(e) {
+  e.preventDefault();
+  const id  = document.getElementById('uId').value;
+  const pwd = document.getElementById('uPwd').value.trim();
+  if (!id && !pwd) { alert('Le mot de passe est requis pour un nouvel utilisateur.'); return; }
+  const d = {
+    id:                id || undefined,
+    prenom:            document.getElementById('uPrenom').value.trim(),
+    nom:               document.getElementById('uNom').value.trim(),
+    email:             document.getElementById('uEmail').value.trim().toLowerCase(),
+    pwd:               pwd || undefined,
+    role:              document.getElementById('uRole').value,
+    societePrincipale: document.getElementById('uSocietePrincipale').value,
+    actif:             document.getElementById('uActif').checked,
+    _user:             STATE.user && STATE.user.email
+  };
+  try {
+    await API.saveUser(d);
+    STATE.users = await API.getUsers();
+    closeModal('modalUser');
+    renderUsers();
+    showToast(id ? '✅ Utilisateur modifié' : '✅ Utilisateur créé');
+  } catch (err) { alert('Erreur : ' + err.message); }
+}
+
+async function deleteUserAsk(id) {
+  const u = (STATE.users || []).find(function(x) { return x.id === id; });
+  const name = u ? ([u.prenom, u.nom].filter(Boolean).join(' ') || u.email) : id;
+  if (!confirm('Supprimer l\'utilisateur ' + name + ' ?')) return;
+  try {
+    await API.deleteUser(id);
+    STATE.users = (STATE.users || []).filter(function(x) { return x.id !== id; });
+    renderUsers();
+    showToast('🗑️ Utilisateur supprimé');
+  } catch (err) { alert('Erreur : ' + err.message); }
 }
 
 // ═══════════════════════════════════════════════════════════

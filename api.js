@@ -15,6 +15,8 @@ const CACHEABLE = new Set([
 ]);
 
 const INVALIDATIONS = {
+  saveUser:       ['getUsers', 'getInitialData'],
+  deleteUser:     ['getUsers', 'getInitialData'],
   saveChantier:   ['getChantiers', 'getDashboardStats', 'getInitialData'],
   deleteChantier: ['getChantiers', 'getDashboardStats', 'getInitialData'],
   convertProspect:['getChantiers', 'getProspects', 'getDashboardStats', 'getInitialData'],
@@ -104,6 +106,9 @@ const API = {
   getPlanning:    ()            => apiGet('getPlanning'),
   getDashboardStats: ()         => apiGet('getDashboardStats'),
   getUsers:       ()            => apiGet('getUsers'),
+
+  saveUser:        (d)  => apiPost('saveUser', d),
+  deleteUser:      (id) => apiPost('deleteUser', { id }),
 
   saveChantier:    (d)  => apiPost('saveChantier', d),
   deleteChantier:  (id) => apiPost('deleteChantier', { id }),
