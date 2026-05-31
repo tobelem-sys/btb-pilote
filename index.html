@@ -376,6 +376,21 @@ a { color: var(--primary); }
 .muted { color: var(--muted); font-size: .82rem; }
 .hidden { display: none !important; }
 .badge-stat { background: #e5e7eb; color: #374151; padding: 2px 8px; border-radius: 10px; font-size: .72rem; font-weight: 700; margin-left: 6px; }
+
+/* ─── Équipe — performance commerciale ─── */
+.equipe-total { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 11px 16px; background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 14px; font-size: .85rem; }
+.equipe-total b { color: #111827; }
+.equipe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+.equipe-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.05); transition: box-shadow .15s, transform .15s; }
+.equipe-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.09); transform: translateY(-2px); }
+.equipe-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 11px; border-bottom: 1px solid var(--border); }
+.equipe-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 11px 0; }
+.equipe-kpi { text-align: center; background: #f8fafc; border-radius: 8px; padding: 7px 2px; }
+.equipe-kpi-val { font-size: 1.15rem; font-weight: 800; color: #111827; line-height: 1.1; }
+.equipe-kpi-lbl { font-size: .66rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-top: 1px; }
+.equipe-taux { margin-top: 4px; }
+.equipe-bar { height: 7px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+.equipe-bar-fill { height: 100%; border-radius: 4px; transition: width .4s ease; }
 </style>
 </head>
 
@@ -420,6 +435,7 @@ a { color: var(--primary); }
     <button class="active" data-tab="dashboard">📊 Tableau de bord</button>
     <button data-tab="prospects">🎯 Prospects</button>
     <button data-tab="suivi">📈 Suivi commercial</button>
+    <button data-tab="equipe">👥 Équipe</button>
     <button data-tab="chantiers">🏗 Chantiers</button>
     <button data-tab="planning">📅 Planning</button>
     <button data-tab="admin" style="display:none">⚙ Admin</button>
@@ -542,6 +558,35 @@ a { color: var(--primary); }
         </div>
       </div>
       <div id="listSuivi"></div>
+    </section>
+
+    <!-- Équipe — Performance par commercial -->
+    <section id="tab-equipe" class="tab-content hidden">
+      <div class="flex-between" style="margin-bottom:10px">
+        <h2 style="margin:0;font-size:1.15rem">Performance par commercial</h2>
+      </div>
+      <div class="card" style="padding:10px;margin-bottom:14px">
+        <div class="flex-between">
+          <div>
+            <label class="muted" style="font-size:.78rem">Société :</label>
+            <select id="filtreSocEquipe" onchange="renderEquipe()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);margin-left:5px">
+              <option value="">Toutes</option>
+              <option value="ALL">Allée</option>
+              <option value="CLO">Clôture</option>
+              <option value="JAR">Jardin</option>
+            </select>
+          </div>
+          <div>
+            <label class="muted" style="font-size:.78rem">Période :</label>
+            <select id="filtrePeriodeEquipe" onchange="renderEquipe()" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);margin-left:5px">
+              <option value="mois">Ce mois-ci</option>
+              <option value="annee" selected>Cette année</option>
+              <option value="tout">Tout l'historique</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div id="equipeGrid"></div>
     </section>
 
     <!-- Planning -->
@@ -946,6 +991,7 @@ document.getElementById('navTabs').addEventListener('click', function(e) {
   document.getElementById('tab-' + b.dataset.tab).classList.remove('hidden');
   if (b.dataset.tab === 'dashboard') loadDashboard();
   if (b.dataset.tab === 'planning')  renderPlanning();
+  if (b.dataset.tab === 'equipe')    renderEquipe();
   if (b.dataset.tab === 'admin')     renderUsers();
 });
 
@@ -2107,6 +2153,129 @@ function fmtDate(d) {
 function dstr(d) {
   if (!d) return '';
   try { return new Date(d).toISOString().slice(0,10); } catch(e) { return ''; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Équipe — Performance par commercial
+// ═══════════════════════════════════════════════════════════
+var EQUIPE_RDV_TYPES = ['r1', 'r2', 'r3', 'rplus'];
+
+function _equipeInPeriod(dateStr, mode) {
+  if (mode === 'tout') return true;
+  var d = new Date(dateStr);
+  if (isNaN(d.getTime())) return false;
+  var now = new Date();
+  if (d.getFullYear() !== now.getFullYear()) return false;
+  if (mode === 'mois') return d.getMonth() === now.getMonth();
+  return true; // annee
+}
+
+function equipeKpi(label, val, color) {
+  return '<div class="equipe-kpi">' +
+    '<div class="equipe-kpi-val"' + (color ? ' style="color:' + color + '"' : '') + '>' + val + '</div>' +
+    '<div class="equipe-kpi-lbl">' + label + '</div>' +
+    '</div>';
+}
+
+function renderEquipe() {
+  var fs   = document.getElementById('filtreSocEquipe').value;
+  var mode = document.getElementById('filtrePeriodeEquipe').value;
+  var grid = document.getElementById('equipeGrid');
+
+  var list = (STATE.suivi || [])
+    .filter(function(s) { return !fs || s.societe === fs; })
+    .filter(function(s) { return _equipeInPeriod(s.date, mode); });
+
+  var SOC_FR = { ALL: 'Allée', CLO: 'Clôture', JAR: 'Jardin' };
+
+  // Agrégation par commercial
+  var byComm = {};
+  list.forEach(function(s) {
+    var c = (s.commercial || '').trim();
+    if (!c) return; // on ignore les entrées sans commercial assigné
+    if (!byComm[c]) byComm[c] = { name: c, rdv: 0, devis: 0, signe: 0, perdu: 0, ca: 0, socs: {}, last: 0 };
+    var o = byComm[c];
+    if (EQUIPE_RDV_TYPES.indexOf(s.type) > -1) o.rdv++;
+    else if (s.type === 'devis_envoye') o.devis++;
+    else if (s.type === 'signe') { o.signe++; o.ca += Number(s.montant) || 0; }
+    else if (s.type === 'perdu') o.perdu++;
+    if (s.societe) o.socs[s.societe] = 1;
+    var t = new Date(s.date || 0).getTime();
+    if (t && t > o.last) o.last = t;
+  });
+
+  var rows = Object.keys(byComm).map(function(k) {
+    var o = byComm[k];
+    o.taux = o.devis > 0 ? Math.round(o.signe / o.devis * 100) : 0;
+    return o;
+  }).sort(function(a, b) { return (b.ca - a.ca) || (b.signe - a.signe); });
+
+  if (rows.length === 0) {
+    grid.innerHTML = '<div class="empty">Aucune activité commerciale sur cette période.</div>';
+    return;
+  }
+
+  // Totaux équipe
+  var tot = rows.reduce(function(a, o) {
+    a.rdv += o.rdv; a.devis += o.devis; a.signe += o.signe; a.perdu += o.perdu; a.ca += o.ca; return a;
+  }, { rdv: 0, devis: 0, signe: 0, perdu: 0, ca: 0 });
+  var totTaux = tot.devis > 0 ? Math.round(tot.signe / tot.devis * 100) : 0;
+
+  var medals = ['🥇', '🥈', '🥉'];
+
+  var cards = rows.map(function(o, i) {
+    var rank = medals[i] || ('#' + (i + 1));
+    var socTags = Object.keys(o.socs).map(function(code) {
+      return '<span class="chip chip-' + code.toLowerCase() + '" style="font-size:.66rem;padding:1px 7px">' + (SOC_FR[code] || code) + '</span>';
+    }).join(' ');
+    var tauxColor = o.taux >= 50 ? '#16a34a' : (o.taux >= 25 ? '#f59e0b' : '#ef4444');
+    var jours = o.last ? Math.floor((Date.now() - o.last) / 86400000) : null;
+    var lastTxt = jours === null ? '' :
+      (jours <= 0 ? 'Actif aujourd\'hui' : (jours === 1 ? 'Hier' : 'Il y a ' + jours + ' jours'));
+    var lastColor = (jours !== null && jours > 21) ? '#ef4444' : 'var(--muted)';
+
+    return '<div class="equipe-card">' +
+      '<div class="equipe-card-head">' +
+        '<div style="display:flex;align-items:center;gap:9px;min-width:0">' +
+          '<span style="font-size:1.35rem;flex-shrink:0">' + rank + '</span>' +
+          '<div style="min-width:0">' +
+            '<div style="font-weight:700;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(o.name) + '</div>' +
+            '<div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap">' + socTags + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0">' +
+          '<div style="font-size:1.1rem;font-weight:800;color:var(--primary);line-height:1">' + fmtEuro(o.ca) + '</div>' +
+          '<div style="font-size:.68rem;color:var(--muted)">CA signé</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="equipe-kpis">' +
+        equipeKpi('RDV', o.rdv) +
+        equipeKpi('Devis', o.devis) +
+        equipeKpi('Signés', o.signe, o.signe ? '#16a34a' : null) +
+        equipeKpi('Perdus', o.perdu, o.perdu ? '#ef4444' : null) +
+      '</div>' +
+      '<div class="equipe-taux">' +
+        '<div style="display:flex;justify-content:space-between;font-size:.74rem;margin-bottom:3px">' +
+          '<span class="muted">Taux de transformation (devis → signé)</span>' +
+          '<span style="font-weight:700;color:' + tauxColor + '">' + o.taux + '%</span>' +
+        '</div>' +
+        '<div class="equipe-bar"><div class="equipe-bar-fill" style="width:' + Math.min(100, o.taux) + '%;background:' + tauxColor + '"></div></div>' +
+      '</div>' +
+      (lastTxt ? '<div style="font-size:.72rem;margin-top:9px;color:' + lastColor + '">🕑 Dernière activité : ' + lastTxt + '</div>' : '') +
+    '</div>';
+  }).join('');
+
+  var totalBar =
+    '<div class="equipe-total">' +
+      '<span style="font-weight:700">Équipe · ' + rows.length + ' commercial' + (rows.length > 1 ? 'aux' : '') + '</span>' +
+      '<span><b>' + tot.rdv + '</b> RDV</span>' +
+      '<span><b>' + tot.devis + '</b> devis</span>' +
+      '<span><b>' + tot.signe + '</b> signés</span>' +
+      '<span>Transfo&nbsp;<b>' + totTaux + '%</b></span>' +
+      '<span style="margin-left:auto;color:var(--primary);font-weight:800;font-size:1rem">' + fmtEuro(tot.ca) + '</span>' +
+    '</div>';
+
+  grid.innerHTML = totalBar + '<div class="equipe-grid">' + cards + '</div>';
 }
 
 // ═══════════════════════════════════════════════════════════
