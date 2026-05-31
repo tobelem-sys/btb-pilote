@@ -412,6 +412,15 @@ a { color: var(--primary); }
 .fiche-tl .tl-date { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 74px; flex-shrink: 0; }
 .fiche-inter { background: #f8fafc; border-radius: 8px; padding: 6px 9px; font-size: .8rem; margin-top: 5px; display: flex; justify-content: space-between; gap: 8px; }
 .status-badge { font-size: .68rem; font-weight: 700; padding: 2px 9px; border-radius: 20px; }
+/* Modale vente */
+.vente-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; margin-bottom: 4px; border: 1px solid transparent; }
+.vente-row.on { background: #f0fdf4; border-color: #bbf7d0; }
+.vente-check { display: flex; align-items: center; gap: 6px; min-width: 118px; cursor: pointer; font-weight: 600; }
+.vente-montant { width: 120px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; }
+.vente-comm { flex: 1; min-width: 90px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; }
+.vente-montant:disabled, .vente-comm:disabled { background: #f8fafc; color: #cbd5e1; }
+.vente-total { display: flex; justify-content: space-between; font-weight: 800; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 1rem; }
+.vente-total span:last-child { color: var(--primary); }
 </style>
 </head>
 
@@ -585,8 +594,11 @@ a { color: var(--primary); }
     <section id="tab-clients" class="tab-content hidden">
       <div class="flex-between" style="margin-bottom:10px">
         <h2 style="margin:0;font-size:1.15rem">Clients <span class="badge-stat" id="badgeClients">0</span></h2>
-        <input id="rechercheClient" placeholder="🔍 Rechercher un client…" oninput="renderClients()"
-               style="padding:7px 11px;border-radius:8px;border:1px solid var(--border);min-width:220px;font-size:.85rem">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input id="rechercheClient" placeholder="🔍 Rechercher un client…" oninput="renderClients()"
+                 style="padding:7px 11px;border-radius:8px;border:1px solid var(--border);min-width:200px;font-size:.85rem">
+          <button class="btn-primary" onclick="openVenteModal()">💶 Enregistrer une vente</button>
+        </div>
       </div>
       <div class="card" style="padding:10px;margin-bottom:14px">
         <div class="flex-between">
@@ -906,6 +918,31 @@ a { color: var(--primary); }
     </div>
     <div id="ficheBody"></div>
   </div>
+</div>
+
+<!-- ═══ MODALE Nouvelle vente (signature multi-sociétés) ═══ -->
+<div class="modal-bg" id="modalVente">
+  <form class="modal" onsubmit="saveVenteForm(event)">
+    <h2>💶 Enregistrer une vente</h2>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Client *</label>
+        <input id="vClient" list="vClientsList" required placeholder="Nom du client">
+        <datalist id="vClientsList"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Date de signature *</label>
+        <input type="date" id="vDate" required>
+      </div>
+    </div>
+    <label class="muted" style="font-size:.8rem;font-weight:600">Sociétés vendues — cochez 1, 2 ou 3 (vente simple / double / triple)</label>
+    <div id="venteSocRows" style="margin-top:7px"></div>
+    <div class="vente-total"><span>Total vendu</span><span id="venteTotalVal">0 €</span></div>
+    <div class="modal-footer">
+      <button type="button" class="btn-sm" onclick="closeModal('modalVente')">Annuler</button>
+      <button type="submit" class="btn-primary">Enregistrer la vente</button>
+    </div>
+  </form>
 </div>
 
 <script src="./api.js"></script>
@@ -2366,10 +2403,11 @@ function openFicheClient(key) {
   var contact = [];
   if (c.ville) contact.push('📍 ' + esc(c.ville));
   if (c.tel)   contact.push('📞 ' + esc(c.tel));
-  var header = '<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:2px 0 14px;font-size:.84rem;color:var(--muted)">' +
+  var header = '<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:2px 0 12px;font-size:.84rem;color:var(--muted)">' +
     contact.join('<span style="opacity:.5">·</span>') +
     (agg && agg.caTotal > 0 ? '<span style="margin-left:auto;font-weight:800;color:var(--primary);font-size:1.05rem">' + fmtEuro(agg.caTotal) + ' signé</span>' : '') +
-  '</div>';
+  '</div>' +
+  '<button class="btn-primary" data-fa="vente" style="width:100%;margin-bottom:14px">💶 Enregistrer une vente pour ce client</button>';
 
   var blocks = SOC_CODES.filter(function(code) { return c.socs[code] && socStatus(c.socs[code]); })
     .map(function(code) { return ficheSocBlock(c, code); }).join('');
@@ -2379,9 +2417,11 @@ function openFicheClient(key) {
   document.getElementById('ficheBody').onclick = function(e) {
     var b = e.target.closest('button[data-fa]');
     if (!b) return;
+    var fa = b.getAttribute('data-fa');
     var soc = b.getAttribute('data-soc');
-    if (b.getAttribute('data-fa') === 'suivi')    ficheAddSuivi(c.name, soc);
-    else if (b.getAttribute('data-fa') === 'plan') ficheAddPlanning(c.name, soc);
+    if (fa === 'vente')      { closeModal('modalFiche'); openVenteModal(c.name); }
+    else if (fa === 'suivi') ficheAddSuivi(c.name, soc);
+    else if (fa === 'plan')  ficheAddPlanning(c.name, soc);
   };
   openModal('modalFiche');
 }
@@ -2436,6 +2476,101 @@ function ficheAddPlanning(clientName, soc) {
   openPlanningModal();
   document.getElementById('plClient').value = clientName;
   if (soc) document.getElementById('plEnseigne').value = soc;
+}
+
+// ─── Enregistrer une vente (signature) — point d'entrée du parcours ───
+function openVenteModal(prefillClient) {
+  document.getElementById('vClient').value = prefillClient || '';
+  document.getElementById('vDate').value = new Date().toISOString().slice(0, 10);
+  // Datalist clients (chantiers + suivi + prospects)
+  var names = {};
+  (STATE.chantiers || []).forEach(function(c) { if (c.client) names[c.client] = 1; });
+  (STATE.suivi || []).forEach(function(s) { if (s.client) names[s.client] = 1; });
+  (STATE.prospects || []).forEach(function(p) { var n = [p.prenom, p.nom].filter(Boolean).join(' '); if (n) names[n] = 1; });
+  document.getElementById('vClientsList').innerHTML =
+    Object.keys(names).sort().map(function(n) { return '<option value="' + esc(n) + '">'; }).join('');
+  renderVenteSocRows();
+  openModal('modalVente');
+}
+
+function renderVenteSocRows() {
+  var box = document.getElementById('venteSocRows');
+  box.innerHTML = SOC_CODES.map(function(code) {
+    var comms = SOC_COMMERCIAUX[code] || COMMERCIAUX;
+    var commOpts = comms.map(function(n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+    return '<div class="vente-row" data-code="' + code + '">' +
+      '<label class="vente-check"><input type="checkbox" class="vente-soc-cb" value="' + code + '"> ' +
+        '<span class="chip chip-' + code.toLowerCase() + '">' + SOC_FR3[code] + '</span></label>' +
+      '<input type="number" step="0.01" min="0" class="vente-montant" placeholder="Montant €" disabled>' +
+      '<select class="vente-comm" disabled><option value="">Commercial…</option>' + commOpts + '</select>' +
+    '</div>';
+  }).join('');
+  box.querySelectorAll('.vente-soc-cb').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var row = cb.closest('.vente-row');
+      var m = row.querySelector('.vente-montant'), s = row.querySelector('.vente-comm');
+      m.disabled = !cb.checked; s.disabled = !cb.checked;
+      if (cb.checked) { row.classList.add('on'); m.focus(); } else { row.classList.remove('on'); m.value = ''; s.value = ''; }
+      recalcVenteTotal();
+    });
+  });
+  box.querySelectorAll('.vente-montant').forEach(function(m) { m.addEventListener('input', recalcVenteTotal); });
+  recalcVenteTotal();
+}
+
+function recalcVenteTotal() {
+  var total = 0;
+  document.querySelectorAll('#venteSocRows .vente-row').forEach(function(row) {
+    if (row.querySelector('.vente-soc-cb').checked) total += parseFloat(row.querySelector('.vente-montant').value) || 0;
+  });
+  document.getElementById('venteTotalVal').textContent = fmtEuro(total);
+}
+
+async function saveVenteForm(e) {
+  e.preventDefault();
+  var client = document.getElementById('vClient').value.trim();
+  var date   = document.getElementById('vDate').value;
+  if (!client) { alert('Indiquez le client.'); return; }
+  var sales = [];
+  document.querySelectorAll('#venteSocRows .vente-row').forEach(function(row) {
+    var cb = row.querySelector('.vente-soc-cb');
+    if (!cb.checked) return;
+    sales.push({
+      code: cb.value,
+      montant: parseFloat(row.querySelector('.vente-montant').value) || 0,
+      commercial: row.querySelector('.vente-comm').value
+    });
+  });
+  if (!sales.length) { alert('Cochez au moins une société vendue.'); return; }
+
+  var btn = e.target.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enregistrement…'; }
+  try {
+    for (var i = 0; i < sales.length; i++) {
+      await API.saveSuivi({
+        date:       date,
+        societe:    sales[i].code,
+        type:       'signe',
+        client:     client,
+        commercial: sales[i].commercial,
+        montant:    sales[i].montant,
+        chantierId: '',
+        prospectId: '',
+        notes:      'Vente enregistrée',
+        _user:      STATE.user && STATE.user.email
+      });
+    }
+    STATE.suivi = await API.getSuivi();
+    closeModal('modalVente');
+    renderClients();
+    badges();
+    var multi = sales.length === 3 ? ' (TRIPLE)' : (sales.length === 2 ? ' (DOUBLE)' : '');
+    showToast('✅ Vente enregistrée pour ' + client + ' — ' + sales.length + ' société(s)' + multi + ' → à planifier', 4000);
+  } catch (err) {
+    alert('Erreur : ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Enregistrer la vente'; }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
