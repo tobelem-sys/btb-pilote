@@ -2369,6 +2369,18 @@ function renderClients() {
   };
 }
 
+// Jours écoulés depuis la dernière signature pour les sociétés « à planifier »
+function _daysSinceSigned(c, agg) {
+  var last = 0;
+  agg.involved.forEach(function(code) {
+    if (agg.statuses[code] !== 'a_planifier') return;
+    (c.socs[code].suivi || []).forEach(function(s) {
+      if (s.type === 'signe' && s.date) { var t = new Date(s.date).getTime(); if (t > last) last = t; }
+    });
+  });
+  return last ? Math.floor((Date.now() - last) / 86400000) : null;
+}
+
 function clientCardHtml(c, agg) {
   var pills = agg.involved.map(function(code) {
     return '<span class="soc-pill st-' + agg.statuses[code] + '">' + SOC_FR3[code] + '</span>';
@@ -2376,9 +2388,21 @@ function clientCardHtml(c, agg) {
   var ca   = agg.caTotal > 0 ? fmtEuro(agg.caTotal) : (agg.estTotal > 0 ? '~' + fmtEuro(agg.estTotal) : '');
   var warn = agg.stage === 'a_planifier' ? ' warn' : '';
   var multiBadge = agg.multi ? ' <span class="badge-multi">' + (agg.involved.length === 3 ? 'TRIPLE' : 'DOUBLE') + '</span>' : '';
+
+  // Alerte d'ancienneté : vente signée mais pose pas encore programmée
+  var aging = '';
+  if (agg.stage === 'a_planifier') {
+    var d = _daysSinceSigned(c, agg);
+    if (d !== null) {
+      var col = d > 30 ? '#ef4444' : (d > 14 ? '#f59e0b' : '#94a3b8');
+      aging = '<div style="font-size:.7rem;font-weight:700;color:' + col + ';margin-bottom:6px">⏳ Signé il y a ' + d + ' j' + (d > 14 ? ' — à planifier !' : '') + '</div>';
+    }
+  }
+
   return '<div class="client-card' + warn + '" data-ckey="' + esc(c.key) + '">' +
     '<div class="client-card-name">' + esc(c.name) + multiBadge + '</div>' +
     '<div class="client-card-socs">' + pills + '</div>' +
+    aging +
     '<div class="client-card-foot">' +
       '<span class="client-card-ca">' + ca + '</span>' +
       (c.ville ? '<span>📍 ' + esc(c.ville) + '</span>' : '') +
@@ -2422,6 +2446,7 @@ function openFicheClient(key) {
     if (fa === 'vente')      { closeModal('modalFiche'); openVenteModal(c.name); }
     else if (fa === 'suivi') ficheAddSuivi(c.name, soc);
     else if (fa === 'plan')  ficheAddPlanning(c.name, soc);
+    else if (fa === 'done')  ficheMarkDone(b.getAttribute('data-pid'));
   };
   openModal('modalFiche');
 }
@@ -2443,9 +2468,14 @@ function ficheSocBlock(c, code) {
   var inters = (so.inter || []).slice().sort(function(a, b) { return new Date(a.dateDebut || 0) - new Date(b.dateDebut || 0); })
     .map(function(p) {
       var col = p.statut === 'Terminé' ? '#166534' : (p.statut === 'Annulé' ? '#991b1b' : '#1e40af');
+      var canDone = p.statut !== 'Terminé' && p.statut !== 'Annulé';
+      var dates = fmtDate(p.dateDebut) + (p.dateFin && p.dateFin !== p.dateDebut ? '→' + fmtDate(p.dateFin) : '');
       return '<div class="fiche-inter">' +
         '<span>🔧 ' + esc(p.tache || 'Intervention') + '</span>' +
-        '<span style="color:' + col + ';font-weight:600">' + fmtDate(p.dateDebut) + (p.dateFin && p.dateFin !== p.dateDebut ? '→' + fmtDate(p.dateFin) : '') + ' · ' + esc(p.statut || '') + '</span>' +
+        '<span style="display:flex;align-items:center;gap:8px">' +
+          '<span style="color:' + col + ';font-weight:600;white-space:nowrap">' + dates + ' · ' + esc(p.statut || '') + '</span>' +
+          (canDone ? '<button class="btn-sm" data-fa="done" data-pid="' + esc(p.id) + '" style="padding:2px 8px;color:#166534;font-weight:700;white-space:nowrap">✓ Terminé</button>' : '') +
+        '</span>' +
       '</div>';
     }).join('');
 
@@ -2476,6 +2506,26 @@ function ficheAddPlanning(clientName, soc) {
   openPlanningModal();
   document.getElementById('plClient').value = clientName;
   if (soc) document.getElementById('plEnseigne').value = soc;
+}
+
+async function ficheMarkDone(planId) {
+  var p = (STATE.planning || []).find(function(x) { return x.id === planId; });
+  if (!p) return;
+  if (!confirm('Marquer « ' + (p.tache || 'cette intervention') + ' » comme terminée ?')) return;
+  try {
+    await API.savePlanning(Object.assign({}, p, {
+      dateDebut: dstr(p.dateDebut),
+      dateFin:   dstr(p.dateFin),
+      statut:    'Terminé',
+      _user:     STATE.user && STATE.user.email
+    }));
+    STATE.planning = await API.getPlanning();
+    var key = document.getElementById('modalFiche').dataset.ckey;
+    renderClients();
+    if (key && _clientsData[key]) openFicheClient(key);
+    else closeModal('modalFiche');
+    showToast('✅ Intervention terminée', 2500);
+  } catch (err) { alert('Erreur : ' + err.message); }
 }
 
 // ─── Enregistrer une vente (signature) — point d'entrée du parcours ───
